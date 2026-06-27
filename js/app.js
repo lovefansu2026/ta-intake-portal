@@ -546,12 +546,24 @@
         html += renderLawCard(reg, '行政法规');
       });
     }
-    if (filter === '赔偿标准') {
+    if (filter === 'all' || filter === '赔偿标准') {
       html += renderCompensationStandardsCard();
     }
-    if (filter === '裁判观点') {
+    if (filter === 'all' || filter === '裁判观点') {
       html += renderJudicialTrendsCard();
       html += renderTypicalCasesCard();
+    }
+    if (filter === 'all' || filter === '证据清单') {
+      html += renderEvidenceChecklist();
+    }
+    if (filter === 'all' || filter === '法律关系') {
+      html += renderLegalRelationships();
+    }
+    if (filter === 'all' || filter === '诉讼策略') {
+      html += renderLitigationStrategies();
+    }
+    if (filter === 'all' || filter === '庭审要点') {
+      html += renderTrialPoints();
     }
 
     // Always show deadlines reference
@@ -649,6 +661,123 @@
       html += '<tr><td>' + escHtml(d.item) + '</td><td style="font-weight:600;">' + escHtml(d.period) + '</td><td>' + escHtml(d.basis) + '</td></tr>';
     });
     html += '</tbody></table></div></div>';
+    return html;
+  }
+
+  function renderEvidenceChecklist() {
+    var html = '<div class="law-card"><div class="law-header"><div class="law-title">证据收集清单</div><span class="badge badge-info">证据</span></div>';
+    html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">来源：操作指引第二节 — 对照逐项核查证据链完整性</div>';
+
+    LEGAL_DATA.evidenceChecklist.forEach(function(cat) {
+      html += '<div style="margin-bottom:16px;"><strong style="font-size:14px;display:block;margin-bottom:8px;">' + escHtml(cat.category) + '</strong>';
+      html += '<div class="table-wrapper"><table class="table"><thead><tr><th>证据名称</th><th>证明目的</th><th>获取方式</th><th>备注</th></tr></thead><tbody>';
+      cat.items.forEach(function(item) {
+        var urgencyColor = '';
+        if (item.urgency) {
+          urgencyColor = item.urgency.indexOf('紧急') >= 0 ? 'color:var(--danger);font-weight:600;' : '';
+        }
+        var note = item.note || item.target || '';
+        html += '<tr><td style="font-weight:500;">' + escHtml(item.name) + '</td><td>' + escHtml(item.purpose) + '</td><td style="font-size:13px;">' + escHtml(item.source) + '</td><td style="font-size:13px;color:var(--text-muted);">' + escHtml(note) + '</td></tr>';
+      });
+      html += '</tbody></table></div></div>';
+    });
+
+    html += '</div>';
+    return html;
+  }
+
+  function renderLegalRelationships() {
+    var html = '<div class="law-card"><div class="law-header"><div class="law-title">法律关系识别</div><span class="badge badge-primary">分析</span></div>';
+    html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">来源：操作指引第一节 — 接案后识别案件涉及的法律关系</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">';
+
+    LEGAL_DATA.legalRelationships.forEach(function(rel) {
+      html += '<div style="padding:12px;background:var(--bg);border-radius:var(--radius);border-left:3px solid var(--primary);">' +
+        '<div style="font-weight:600;font-size:14px;margin-bottom:6px;">' + escHtml(rel.type) + '</div>' +
+        '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;">识别要点：' + escHtml(rel.keyPoints) + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">依据：' + escHtml(rel.basis) + '</div>' +
+      '</div>';
+    });
+
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderLitigationStrategies() {
+    var html = '<div class="law-card"><div class="law-header"><div class="law-title">诉讼策略建议</div><span class="badge badge-warning">策略</span></div>';
+    html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">来源：操作指引第四节 — 被告选择、保险索赔、时效管理、刑事风险</div>';
+
+    LEGAL_DATA.litigationStrategies.forEach(function(strat) {
+      html += '<div style="margin-bottom:16px;"><strong style="font-size:14px;display:block;margin-bottom:8px;">' + escHtml(strat.category) + '</strong>';
+
+      if (strat.category === '被告选择策略') {
+        html += '<div class="table-wrapper"><table class="table"><thead><tr><th>被告类型</th><th>何时列为被告</th><th>法律依据</th></tr></thead><tbody>';
+        strat.items.forEach(function(item) {
+          html += '<tr><td style="font-weight:500;">' + escHtml(item.defendant) + '</td><td>' + escHtml(item.when) + '</td><td style="font-size:13px;">' + escHtml(item.basis) + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else if (strat.category === '保险索赔要点') {
+        strat.items.forEach(function(item) {
+          html += '<div style="margin-bottom:8px;padding:8px 12px;background:var(--bg);border-radius:var(--radius-sm);">' +
+            '<strong>' + escHtml(item.point) + '</strong>' +
+            '<div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">' + escHtml(item.desc) + '</div>' +
+          '</div>';
+        });
+      } else if (strat.category === '诉讼时效管理') {
+        html += '<div class="table-wrapper"><table class="table"><thead><tr><th>请求权</th><th>时效</th><th>起算点</th><th>依据</th></tr></thead><tbody>';
+        strat.items.forEach(function(item) {
+          html += '<tr><td style="font-weight:500;">' + escHtml(item.claim) + '</td><td style="font-weight:600;">' + escHtml(item.period) + '</td><td style="font-size:13px;">' + escHtml(item.startPoint) + '</td><td style="font-size:13px;">' + escHtml(item.basis) + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else if (strat.category === '刑事立案标准') {
+        html += '<div class="table-wrapper"><table class="table"><thead><tr><th>情形</th><th>立案标准</th><th>量刑</th></tr></thead><tbody>';
+        strat.items.forEach(function(item) {
+          var sentenceColor = item.sentence.indexOf('7年') >= 0 ? 'color:var(--danger);font-weight:600;' : '';
+          html += '<tr><td style="font-weight:500;">' + escHtml(item.situation) + '</td><td style="font-size:13px;">' + escHtml(item.standard) + '</td><td style="font-size:13px;' + sentenceColor + '">' + escHtml(item.sentence) + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+
+      html += '</div>';
+    });
+
+    html += '</div>';
+    return html;
+  }
+
+  function renderTrialPoints() {
+    var html = '<div class="law-card"><div class="law-header"><div class="law-title">庭审要点</div><span class="badge badge-success">庭审</span></div>';
+    html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">来源：操作指引第五节 — 质证、举证、保险审查、庭审流程</div>';
+
+    LEGAL_DATA.trialPoints.forEach(function(section) {
+      html += '<div style="margin-bottom:16px;"><strong style="font-size:14px;display:block;margin-bottom:8px;">' + escHtml(section.category) + '</strong>';
+
+      if (section.category === '逐项举证体系') {
+        html += '<div class="table-wrapper"><table class="table"><thead><tr><th>赔偿项目</th><th>核心证据</th><th>辅助证据</th></tr></thead><tbody>';
+        section.points.forEach(function(p) {
+          html += '<tr><td style="font-weight:500;">' + escHtml(p.item) + '</td><td>' + escHtml(p.core) + '</td><td style="font-size:13px;color:var(--text-muted);">' + escHtml(p.auxiliary) + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      } else if (section.category === '庭审全流程') {
+        html += '<div style="display:flex;flex-direction:column;gap:4px;">';
+        section.points.forEach(function(p) {
+          var stepNum = parseInt(p);
+          var bgColor = stepNum <= 2 ? 'var(--bg)' : stepNum <= 4 ? 'var(--primary-light)' : stepNum <= 8 ? 'var(--info-light, #e8f4fd)' : stepNum <= 10 ? 'var(--warning-light, #fff8e1)' : 'var(--success-light, #e8f5e9)';
+          html += '<div style="padding:6px 12px;background:' + bgColor + ';border-radius:var(--radius-sm);font-size:13px;">' + escHtml(p) + '</div>';
+        });
+        html += '</div>';
+      } else {
+        html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+        section.points.forEach(function(p) {
+          html += '<div style="padding:8px 12px;background:var(--bg);border-radius:var(--radius-sm);font-size:13px;">' + escHtml(p) + '</div>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+    });
+
+    html += '</div>';
     return html;
   }
 

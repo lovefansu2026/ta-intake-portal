@@ -897,6 +897,7 @@ a:hover { text-decoration: underline; }
 /* ===== Filter Tabs ===== */
 .filter-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 20px;
   background: var(--bg);

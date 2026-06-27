@@ -76,6 +76,8 @@ var LEGAL_DATA = {
       source: '全国人大',
       sourceUrl: 'https://www.npc.gov.cn/npc/c30834/',
       articles: [
+        { no: '第22条', title: '被告住所地管辖', summary: '对公民提起的民事诉讼，由被告住所地人民法院管辖' },
+        { no: '第29条', title: '侵权行为地管辖', summary: '因侵权行为提起的诉讼，由侵权行为地或者被告住所地人民法院管辖' },
         { no: '第104条', title: '诉前财产保全', summary: '利害关系人可在起诉前申请财产保全' }
       ]
     }
@@ -139,6 +141,16 @@ var LEGAL_DATA = {
       source: '最高人民法院',
       sourceUrl: 'https://www.court.gov.cn/',
       keyPoints: ['各项赔偿计算公式', '城镇/农村统一标准']
+    },
+    {
+      id: 'ji-5',
+      name: '人体损伤致残程度分级',
+      version: '现行有效',
+      category: '司法解释',
+      effectiveDate: '2017.1.1',
+      source: '最高人民法院/最高人民检察院/公安部/国家安全部/司法部',
+      sourceUrl: 'https://www.court.gov.cn/',
+      keyPoints: ['伤残等级评定标准（一级至十级）', '颅脑/脊髓损伤、头面部损伤、脊柱四肢等各部位分级标准']
     }
   ],
 
@@ -175,7 +187,7 @@ var LEGAL_DATA = {
   compensationStandards: {
     liaoning: {
       province: '辽宁省',
-      year: '2024年度',
+      year: '2025年度',
       unified: true,
       unifiedNote: '自2020年1月1日起统一适用城镇居民标准',
       data: [
@@ -286,6 +298,162 @@ var LEGAL_DATA = {
       facts: '杜某醉酒驾驶发生交通事故，涉及交通肇事罪与以危险方法危害公共安全罪的竞合。',
       ruling: '法院认定杜某主观上为过失，以交通肇事罪定罪。',
       insight: '主观过错的证明标准是"排除一切合理怀疑"的最高标准。'
+    }
+  ],
+
+  // ===== Evidence Collection Checklist (from operation-guide.md Section 2) =====
+  evidenceChecklist: [
+    {
+      category: '事故责任证据',
+      items: [
+        { name: '交通事故认定书', purpose: '事故责任划分', source: '交警部门出具', urgency: '紧急' },
+        { name: '现场照片/视频', purpose: '事故现场状况', source: '当事人自行拍摄', urgency: '紧急（30-90天监控覆盖）' },
+        { name: '监控录像', purpose: '事故经过', source: '申请交警调取/法院调查令', urgency: '紧急' },
+        { name: '证人证言', purpose: '事故经过', source: '寻找目击者', urgency: '一般' },
+        { name: '事故认定复核申请', purpose: '推翻不利认定', source: '3日内向上级交管部门申请', urgency: '紧急' }
+      ]
+    },
+    {
+      category: '人身损害证据',
+      items: [
+        { name: '门诊病历', purpose: '伤情诊断', source: '就诊医院', note: '加盖医院章' },
+        { name: '住院病历', purpose: '住院经过', source: '病案室复印', note: '含手术记录、护理记录' },
+        { name: '医疗费发票', purpose: '医疗费用', source: '医院财务科', note: '原件保存' },
+        { name: '费用清单', purpose: '用药明细', source: '医院', note: '区分医保内外' },
+        { name: '出院小结', purpose: '出院医嘱', source: '主治医生', note: '关注建休、护理、营养建议' },
+        { name: '伤残鉴定报告', purpose: '伤残等级', source: '司法鉴定机构', note: '选择有资质机构' },
+        { name: '三期鉴定报告', purpose: '误工/护理/营养期', source: '司法鉴定机构', note: '可与伤残鉴定同时申请' }
+      ]
+    },
+    {
+      category: '误工/收入证据',
+      items: [
+        { name: '劳动合同', purpose: '劳动关系证明', source: '用人单位', target: '有固定工作' },
+        { name: '工作证明', purpose: '岗位/入职时间', source: '用人单位', target: '有固定工作' },
+        { name: '工资流水', purpose: '事故前12个月收入', source: '银行', target: '有固定工作' },
+        { name: '收入证明', purpose: '事故前收入', source: '用人单位', target: '有固定工作' },
+        { name: '误工证明', purpose: '误工时间', source: '用人单位', target: '有固定工作' },
+        { name: '行业平均收入证明', purpose: '收入标准', source: '统计局数据', target: '无固定工作/超退休年龄' }
+      ]
+    },
+    {
+      category: '财产损失证据',
+      items: [
+        { name: '车辆维修发票', purpose: '维修费用', source: '维修厂' },
+        { name: '定损单', purpose: '损失金额', source: '保险公司' },
+        { name: '车辆购置发票', purpose: '车辆价值', source: '购车时保存' },
+        { name: '车内物品损失清单', purpose: '物品损失', source: '当事人列明+购买凭证' },
+        { name: '经营性车辆停运损失', purpose: '停运期间损失', source: '营运证+收入证明' }
+      ]
+    },
+    {
+      category: '保险证据',
+      items: [
+        { name: '交强险保单', purpose: '保险关系', source: '保险公司/交警卷宗' },
+        { name: '商业险保单', purpose: '保险关系', source: '保险公司' },
+        { name: '保险条款', purpose: '免责条款', source: '保险公司' }
+      ]
+    }
+  ],
+
+  // ===== Legal Relationship Identification (from operation-guide.md Section 1.2) =====
+  legalRelationships: [
+    { type: '侵权损害赔偿', keyPoints: '事故责任认定、过错程度、因果关系', basis: '《民法典》第1165条、第1179条' },
+    { type: '保险合同理赔', keyPoints: '交强险优先赔付、商业险补充', basis: '《道路交通安全法》第76条' },
+    { type: '劳动/工伤', keyPoints: '上下班途中、合理时间路线、非本人主要责任', basis: '《工伤保险条例》第14条第6项' },
+    { type: '好意同乘', keyPoints: '无偿搭乘、减轻责任', basis: '《民法典》第1217条' },
+    { type: '挂靠经营', keyPoints: '挂靠人与被挂靠人连带责任', basis: '司法解释一第3条' },
+    { type: '租赁借用', keyPoints: '车主过错责任', basis: '司法解释二第1条' }
+  ],
+
+  // ===== Litigation Strategy (from operation-guide.md Section 4) =====
+  litigationStrategies: [
+    {
+      category: '被告选择策略',
+      items: [
+        { defendant: '侵权驾驶人', when: '必须', basis: '直接侵权人' },
+        { defendant: '车主', when: '车主与驾驶人不同时', basis: '审查车主过错' },
+        { defendant: '交强险保险公司', when: '必须', basis: '司法解释一第25条' },
+        { defendant: '商业险保险公司', when: '建议', basis: '一并解决，减少诉累' },
+        { defendant: '挂靠单位', when: '存在挂靠时', basis: '连带责任，司法解释一第3条' },
+        { defendant: '用人单位', when: '职务行为时', basis: '替代责任' }
+      ]
+    },
+    {
+      category: '保险索赔要点',
+      items: [
+        { point: '"开门杀"保险承担', desc: '司法解释二第2条明确，开车门事故由保险公司承担' },
+        { point: '过期驾驶证', desc: '司法解释二第4条，驾驶证超过有效期不免除保险责任' },
+        { point: '工程车辆', desc: '司法解释二第5条，工程机械参照机动车管理' },
+        { point: '好意同乘', desc: '司法解释二第3条，无偿搭乘减轻驾驶人责任' },
+        { point: '保险公司承担诉讼费', desc: '司法解释二第9条，保险公司应承担诉讼费用' }
+      ]
+    },
+    {
+      category: '诉讼时效管理',
+      items: [
+        { claim: '人身损害赔偿', period: '3年', startPoint: '知道或应当知道权利被侵害之日', basis: '《民法典》第188条' },
+        { claim: '财产损失赔偿', period: '3年', startPoint: '同上', basis: '同上' },
+        { claim: '工伤认定申请', period: '1年', startPoint: '事故伤害发生之日', basis: '《工伤保险条例》第17条' }
+      ]
+    },
+    {
+      category: '刑事立案标准',
+      items: [
+        { situation: '死亡1人以上', standard: '负事故全部或主要责任', sentence: '3年以下' },
+        { situation: '重伤3人以上', standard: '负事故全部或主要责任', sentence: '3年以下' },
+        { situation: '死亡2人以上', standard: '负事故同等责任', sentence: '3年以下' },
+        { situation: '逃逸', standard: '构成交通肇事罪后逃逸', sentence: '3-7年' },
+        { situation: '逃逸致人死亡', standard: '', sentence: '7年以上' }
+      ]
+    }
+  ],
+
+  // ===== Trial Points (from operation-guide.md Section 5) =====
+  trialPoints: [
+    {
+      category: '事故认定书质证',
+      points: [
+        '审查事故认定书的程序合法性',
+        '审查事实认定是否有误',
+        '可申请交警出庭说明情况',
+        '法院可对事故认定书进行实质性审查（参考刘某江无罪案）'
+      ]
+    },
+    {
+      category: '逐项举证体系',
+      points: [
+        { item: '医疗费', core: '发票+费用清单', auxiliary: '病历+医嘱' },
+        { item: '误工费', core: '收入证明+误工证明', auxiliary: '银行流水+社保记录' },
+        { item: '护理费', core: '护理人员收入证明', auxiliary: '医嘱+鉴定' },
+        { item: '残疾赔偿金', core: '伤残鉴定报告', auxiliary: '户口本（城乡标准）' }
+      ]
+    },
+    {
+      category: '保险免责条款审查',
+      points: [
+        '审查保险公司是否尽到提示说明义务（《保险法》第17条）',
+        '免责条款是否加粗加黑',
+        '投保单是否有投保人签字确认',
+        '格式条款是否作出不利于保险公司的解释'
+      ]
+    },
+    {
+      category: '庭审全流程',
+      points: [
+        '1. 核实当事人身份',
+        '2. 宣布法庭纪律',
+        '3. 原告陈述诉讼请求及事实理由',
+        '4. 被告答辩',
+        '5. 原告举证（逐项）',
+        '6. 被告质证',
+        '7. 被告举证',
+        '8. 原告质证',
+        '9. 法庭询问',
+        '10. 法庭辩论',
+        '11. 最后陈述',
+        '12. 调解/宣判'
+      ]
     }
   ]
 };
