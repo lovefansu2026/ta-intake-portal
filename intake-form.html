@@ -863,6 +863,7 @@
     <div class="overlay-icon">&#10003;</div>
     <div class="overlay-title">问询单已提交</div>
     <div class="overlay-info" id="overlayInfo"></div>
+    <div id="apiStatus"></div>
     <div class="overlay-steps" id="overlaySteps"></div>
     <div class="overlay-btns">
       <button class="overlay-btn overlay-btn-ok" onclick="closeOverlay()">我知道了</button>
@@ -871,6 +872,11 @@
 </div>
 
 <script>
+  // ===== Cloudflare Worker API Configuration =====
+  // Replace with your actual Worker URL after deployment
+  var API_BASE_URL = 'https://ta-intake-api.linda-yuss.workers.dev';
+  var API_ENABLED = true; // Set to false to disable API submission
+
   // ===== Config from URL params =====
   var CONFIG_KEYS = { firm: 'fn', lawyer: 'lw', contact: 'ct', title: 'tt', return_text: 'rt', team: 'tm', slogan: 'sl' };
 
@@ -1232,6 +1238,28 @@
     a.href = url; a.download = filename;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    // Submit to Cloudflare Worker API
+    var apiStatus = '';
+    if (API_ENABLED && API_BASE_URL) {
+      fetch(API_BASE_URL + '/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data.success) {
+            apiStatus = '<div style="margin-top:12px;padding:10px 14px;background:#edf5ef;border-radius:6px;font-size:13px;color:#2d7a4c;"><strong>✓ 已同步至团队工作台</strong></div>';
+            document.getElementById('apiStatus').innerHTML = apiStatus;
+          } else {
+            apiStatus = '<div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border-radius:6px;font-size:13px;color:#92400e;"><strong>⚠ 同步失败，请手动发送下载的文件</strong></div>';
+            document.getElementById('apiStatus').innerHTML = apiStatus;
+          }
+        }).catch(function(err) {
+          apiStatus = '<div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border-radius:6px;font-size:13px;color:#92400e;"><strong>⚠ 网络错误，请手动发送下载的文件</strong></div>';
+          document.getElementById('apiStatus').innerHTML = apiStatus;
+        });
+    }
 
     var config = loadConfigFromURL();
     document.getElementById('overlayInfo').innerHTML =

@@ -5,11 +5,55 @@
 (function() {
   'use strict';
 
+  // ===== Cloudflare Worker API Configuration =====
+  // Replace with your actual Worker URL after deployment
+  var API_BASE_URL = 'https://ta-intake-api.linda-yuss.workers.dev';
+  var API_ENABLED = true;
+
   // ===== State =====
   var cases = [];
   var currentFilter = 'all';
   var currentDeadlineFilter = 'all';
   var currentLawFilter = 'all';
+
+  // ===== API Integration =====
+  function fetchSubmissions() {
+    if (!API_ENABLED || !API_BASE_URL) return Promise.resolve([]);
+
+    return fetch(API_BASE_URL + '/api/submissions')
+      .then(function(res) {
+        if (!res.ok) throw new Error('API request failed');
+        return res.json();
+      })
+      .catch(function(err) {
+        console.error('Failed to fetch submissions:', err);
+        return [];
+      });
+  }
+
+  function importSubmissionToCase(submission) {
+    var caseObj = {
+      id: submission._meta && submission._meta.case_id ? submission._meta.case_id : submission.id || ('TA-' + Date.now()),
+      importTime: submission.timestamp || new Date().toISOString(),
+      status: submission.status || 'intake',
+      source: submission,
+      basicInfo: submission.sections ? submission.sections.basic_info : {},
+      accident: submission.sections ? submission.sections.accident : {},
+      injury: submission.sections ? submission.sections.injury : {},
+      deadlines: submission.deadline_reminders || [],
+      demands: submission.sections ? submission.sections.demands : {},
+      litigation: submission.sections ? submission.sections.litigation : {},
+      materials: submission.sections ? submission.sections.materials : {}
+    };
+
+    // Check for duplicate
+    var existing = cases.findIndex(function(c) { return c.id === caseObj.id; });
+    if (existing >= 0) {
+      cases[existing] = Object.assign(cases[existing], caseObj);
+    } else {
+      cases.push(caseObj);
+    }
+  }
 
   // ===== Init =====
   function init() {
@@ -109,6 +153,29 @@
       var stored = localStorage.getItem('ta-cases');
       if (stored) cases = JSON.parse(stored);
     } catch(e) { cases = []; }
+
+    // Fetch from API and merge
+    if (API_ENABLED && API_BASE_URL) {
+      fetchSubmissions().then(function(submissions) {
+        if (submissions && submissions.length > 0) {
+          var newCount = 0;
+          submissions.forEach(function(sub) {
+            var exists = cases.some(function(c) {
+              return c.id === (sub._meta && sub._meta.case_id ? sub._meta.case_id : sub.id);
+            });
+            if (!exists) {
+              importSubmissionToCase(sub);
+              newCount++;
+            }
+          });
+          if (newCount > 0) {
+            saveCases();
+            renderDashboard();
+            console.log('Auto-synced ' + newCount + ' new submissions from API');
+          }
+        }
+      });
+    }
   }
 
   function saveCases() {
@@ -734,6 +801,42 @@
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // ===== Manual Sync from API =====
+  function syncFromAPI() {
+    if (!API_ENABLED || !API_BASE_URL) {
+      alert('API 未配置，请先设置 API_BASE_URL');
+      return;
+    }
+
+    fetchSubmissions().then(function(submissions) {
+      if (!submissions || submissions.length === 0) {
+        alert('API 暂无数据');
+        return;
+      }
+
+      var newCount = 0;
+      submissions.forEach(function(sub) {
+        var exists = cases.some(function(c) {
+          return c.id === (sub._meta && sub._meta.case_id ? sub._meta.case_id : sub.id);
+        });
+        if (!exists) {
+          importSubmissionToCase(sub);
+          newCount++;
+        }
+      });
+
+      if (newCount > 0) {
+        saveCases();
+        renderDashboard();
+        alert('同步完成：新增 ' + newCount + ' 个案件');
+      } else {
+        alert('暂无新数据');
+      }
+    }).catch(function(err) {
+      alert('同步失败：' + err.message);
+    });
+  }
+
   // ===== Expose to global =====
   window.navigate = navigate;
   window.toggleSidebar = toggleSidebar;
@@ -752,6 +855,7 @@
   window.exportCaseData = exportCaseData;
   window.previewTemplate = previewTemplate;
   window.calcCourtFee = calcCourtFee;
+  window.syncFromAPI = syncFromAPI;
 
   // ===== Boot =====
   if (document.readyState === 'loading') {

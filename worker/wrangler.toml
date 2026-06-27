@@ -1,0 +1,14 @@
+name = "ta-intake-api"
+main = "index.js"
+compatibility_date = "2026-01-01"
+
+# KV namespace binding - you'll create this in Cloudflare dashboard
+# After creating the KV namespace, replace "ta-intake-submissions" with your actual namespace ID
+[[kv_namespaces]]
+binding = "SUBMISSIONS"
+id = "c6413c68d812475182f18e65e133f6b3"
+
+# Optional: Set up routes if you want a custom domain
+# routes = [
+#   { pattern = "api.ta-intake-portal.pages.dev/*", zone_name = "ta-intake-portal.pages.dev" }
+# ]
