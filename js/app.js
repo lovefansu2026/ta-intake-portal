@@ -15,6 +15,7 @@
   var currentFilter = 'all';
   var currentDeadlineFilter = 'all';
   var currentLawFilter = 'all';
+  var caseSearchQuery = '';
 
   // ===== API Integration =====
   function fetchSubmissions() {
@@ -368,6 +369,29 @@
   // ===== Case List =====
   function renderCaseList() {
     var filtered = currentFilter === 'all' ? cases : cases.filter(function(c) { return c.status === currentFilter; });
+
+    // Apply search filter
+    if (caseSearchQuery) {
+      var q = caseSearchQuery.toLowerCase();
+      filtered = filtered.filter(function(c) {
+        var searchable = [
+          c.basicInfo.name, c.basicInfo.phone, c.basicInfo.gender, c.basicInfo.birthdate,
+          c.basicInfo.address, c.basicInfo.occupation, c.basicInfo.employer,
+          c.id,
+          c.accident.date, c.accident.location, c.accident.liability, c.accident.weather,
+          c.accident.accident_type,
+          c.remarks || ''
+        ];
+        // Search injury persons
+        if (c.injury_persons) {
+          c.injury_persons.forEach(function(p) {
+            searchable.push(p.name, p.diagnosis, p.hospital, p.death_cause, p.injury_part);
+          });
+        }
+        return searchable.some(function(s) { return s && String(s).toLowerCase().indexOf(q) >= 0; });
+      });
+    }
+
     var listDiv = document.getElementById('caseList');
 
     if (filtered.length === 0) {
@@ -1185,6 +1209,110 @@
     });
   }
 
+  // ===== Search Cases =====
+  function searchCases(query) {
+    caseSearchQuery = query.trim();
+    renderCaseList();
+  }
+
+  // ===== Print Case Detail =====
+  function printCaseDetail() {
+    if (!currentCaseId) { alert('请先打开一个案件'); return; }
+    var c = cases.find(function(x) { return x.id === currentCaseId; });
+    if (!c) return;
+
+    var name = c.basicInfo.name || '未知';
+    var printContent = '';
+    printContent += '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>案件详情 - ' + escHtml(name) + '</title>';
+    printContent += '<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#333;font-size:14px;line-height:1.8;}';
+    printContent += 'h1{font-size:22px;border-bottom:2px solid #4a8c6f;padding-bottom:8px;color:#4a8c6f;}';
+    printContent += 'h2{font-size:16px;color:#555;border-bottom:1px solid #ddd;padding-bottom:6px;margin-top:24px;}';
+    printContent += '.field{display:inline-block;width:48%;margin-bottom:6px;vertical-align:top;}';
+    printContent += '.label{color:#888;font-size:12px;} .value{font-weight:500;}';
+    printContent += '.person-card{background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid #4a8c6f;}';
+    printContent += '.note{background:#f0f7f2;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:13px;}';
+    printContent += '.note-time{color:#888;font-size:11px;} @media print{body{padding:10px;}}</style></head><body>';
+
+    printContent += '<h1>' + escHtml(name) + ' — 案件详情</h1>';
+    printContent += '<div style="margin-bottom:8px;color:#888;font-size:13px;">编号：' + escHtml(c.id) + ' &nbsp;|&nbsp; 状态：' + escHtml(c.status) + ' &nbsp;|&nbsp; 导入时间：' + escHtml((c.importTime || '').substring(0, 10)) + '</div>';
+
+    // Basic info
+    printContent += '<h2>当事人信息</h2>';
+    printContent += '<div class="field"><span class="label">姓名：</span><span class="value">' + escHtml(c.basicInfo.name || '—') + '</span></div>';
+    printContent += '<div class="field"><span class="label">电话：</span><span class="value">' + escHtml(c.basicInfo.phone || '—') + '</span></div>';
+    printContent += '<div class="field"><span class="label">性别：</span><span class="value">' + escHtml(c.basicInfo.gender || '—') + '</span></div>';
+    printContent += '<div class="field"><span class="label">出生日期：</span><span class="value">' + escHtml(c.basicInfo.birthdate || '—') + '</span></div>';
+    printContent += '<div class="field"><span class="label">身份证号：</span><span class="value">' + escHtml(c.basicInfo.idcard || '—') + '</span></div>';
+    printContent += '<div class="field"><span class="label">职业：</span><span class="value">' + escHtml(c.basicInfo.occupation || '—') + '</span></div>';
+    printContent += '<div class="field" style="width:100%;"><span class="label">地址：</span><span class="value">' + escHtml(c.basicInfo.address || '—') + '</span></div>';
+
+    // Accident info
+    printContent += '<h2>事故信息</h2>';
+    printContent += '<div class="field"><span class="label">事故日期：</span><span class="value">' + escHtml(c.accident.date || '—') + '</span></div>';
+    printContent += '<div class="field"><span class="label">事故地点：</span><span class="value">' + escHtml(c.accident.location || '—') + '</span></div>';
+    printContent += '<div class="field"><span class="label">责任认定：</span><span class="value">' + escHtml(c.accident.liability || '—') + '</span></div>';
+    printContent += '<div class="field"><span class="label">事故形态：</span><span class="value">' + escHtml(c.accident.type || c.accident.accident_type || '—') + '</span></div>';
+
+    // Injury persons
+    if (c.injury_persons && c.injury_persons.length > 0) {
+      printContent += '<h2>伤亡人员</h2>';
+      c.injury_persons.forEach(function(p) {
+        printContent += '<div class="person-card">';
+        printContent += '<strong>' + escHtml(p.person_type || '受伤') + (p.name ? ' — ' + escHtml(p.name) : '') + (p.age ? ' (' + p.age + '岁)' : '') + '</strong><br>';
+        if (p.person_type === '死亡') {
+          printContent += '<span class="label">死亡原因：</span>' + escHtml(p.death_cause || '—') + '<br>';
+          printContent += '<span class="label">死亡日期：</span>' + escHtml(p.death_date || '—');
+        } else {
+          if (p.diagnosis) printContent += '<span class="label">诊断：</span>' + escHtml(p.diagnosis) + '<br>';
+          if (p.hospital) printContent += '<span class="label">医院：</span>' + escHtml(p.hospital) + '<br>';
+          if (p.hospitalized) printContent += '<span class="label">住院：</span>' + escHtml(p.hosp_start || '') + ' 至 ' + escHtml(p.hosp_end || '—') + '（' + escHtml(p.hosp_days || '—') + '天）<br>';
+          if (p.disability_level) printContent += '<span class="label">伤残等级：</span>' + escHtml(p.disability_level);
+        }
+        printContent += '</div>';
+      });
+    }
+
+    // Insurance
+    if (c.insurance && (c.insurance.own_types || c.insurance.insurer || c.insurance.opposite_insurer)) {
+      printContent += '<h2>保险信息</h2>';
+      if (c.insurance.own_types && c.insurance.own_types.length > 0) printContent += '<div><span class="label">己方险种：</span>' + escHtml(c.insurance.own_types.join('、')) + '</div>';
+      if (c.insurance.insurer) printContent += '<div><span class="label">己方保险公司：</span>' + escHtml(c.insurance.insurer) + '</div>';
+      if (c.insurance.opposite_types && c.insurance.opposite_types.length > 0) printContent += '<div><span class="label">对方险种：</span>' + escHtml(c.insurance.opposite_types.join('、')) + '</div>';
+      if (c.insurance.opposite_insurer) printContent += '<div><span class="label">对方保险公司：</span>' + escHtml(c.insurance.opposite_insurer) + '</div>';
+    }
+
+    // Deadlines
+    if (c.deadlines && c.deadlines.length > 0) {
+      printContent += '<h2>关键期限</h2>';
+      c.deadlines.forEach(function(d) {
+        var color = d.urgent ? 'color:#c0534d;font-weight:600;' : '';
+        printContent += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #ddd;"><span>' + escHtml(d.item) + '</span><span style="' + color + '">' + escHtml(d.remaining || '') + ' (' + escHtml(d.deadline || '') + ')</span></div>';
+      });
+    }
+
+    // Notes
+    if (c.notes && c.notes.length > 0) {
+      printContent += '<h2>跟进记录</h2>';
+      c.notes.forEach(function(n) {
+        printContent += '<div class="note"><div class="note-time">' + escHtml(n.time || '') + '</div><div>' + escHtml(n.content || '') + '</div></div>';
+      });
+    }
+
+    if (c.remarks) {
+      printContent += '<h2>备注</h2>';
+      printContent += '<div>' + escHtml(c.remarks) + '</div>';
+    }
+
+    printContent += '<div style="margin-top:30px;text-align:center;color:#aaa;font-size:12px;">打印时间：' + new Date().toLocaleString('zh-CN') + '</div>';
+    printContent += '</body></html>';
+
+    var printWin = window.open('', '_blank', 'width=900,height=700');
+    printWin.document.write(printContent);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(function() { printWin.print(); }, 500);
+  }
+
   // ===== Expose to global =====
   window.navigate = navigate;
   window.toggleSidebar = toggleSidebar;
@@ -1207,6 +1335,8 @@
   window.exportCaseData = exportCaseData;
   window.previewTemplate = previewTemplate;
   window.calcCourtFee = calcCourtFee;
+  window.searchCases = searchCases;
+  window.printCaseDetail = printCaseDetail;
 
   // ===== Boot =====
   if (document.readyState === 'loading') {

@@ -145,6 +145,12 @@
 
     <!-- ===== Cases View ===== -->
     <div class="main-body view" id="view-cases">
+      <div style="margin-bottom:16px;">
+        <div class="search-input" style="max-width:400px;">
+          <span class="search-icon">&#128269;</span>
+          <input class="input" type="text" placeholder="搜索案件：姓名、编号、电话、诊断..." id="caseSearch" oninput="searchCases(this.value)">
+        </div>
+      </div>
       <div class="filter-tabs" id="caseFilters">
         <button class="filter-tab active" onclick="filterCases('all', this)">全部</button>
         <button class="filter-tab" onclick="filterCases('intake', this)">接谈中</button>
@@ -336,6 +342,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1;border-radius:12px 12px 0 0;">
       <h3 id="caseDetailTitle" style="font-size:18px;font-weight:600;margin:0;">案件详情</h3>
       <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-sm btn-ghost" onclick="printCaseDetail()" id="casePrintBtn" title="打印案件详情">&#128424; 打印</button>
         <button class="btn btn-sm btn-ghost" onclick="toggleCaseEdit()" id="caseEditToggle" title="编辑">&#9998; 编辑</button>
         <button class="btn btn-sm btn-ghost" onclick="closeCaseDetail()" style="font-size:18px;">&times;</button>
       </div>

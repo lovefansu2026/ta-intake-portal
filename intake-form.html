@@ -949,8 +949,9 @@
     <div class="overlay-info" id="overlayInfo"></div>
     <div id="apiStatus"></div>
     <div class="overlay-steps" id="overlaySteps"></div>
-    <div class="overlay-btns">
+    <div class="overlay-btns" style="flex-wrap:wrap;">
       <button class="overlay-btn overlay-btn-ok" onclick="closeOverlay()">我知道了</button>
+      <button class="overlay-btn" style="background:var(--seed-surface);color:var(--seed-fg);border:1px solid var(--seed-border);" onclick="closeOverlay();setTimeout(function(){window.print()},300);">&#128424; 打印/导出PDF</button>
     </div>
   </div>
 </div>

@@ -27,8 +27,10 @@ export default {
       if (path === '/api/submissions' && method === 'POST') {
         const body = await request.json();
 
-        // Validate required fields
-        if (!body.name || !body.phone) {
+        // Validate required fields - check both flat and nested structures
+        const name = body.name || (body.sections && body.sections.basic_info && body.sections.basic_info.name);
+        const phone = body.phone || (body.sections && body.sections.basic_info && body.sections.basic_info.phone);
+        if (!name || !phone) {
           return new Response(
             JSON.stringify({ error: 'Missing required fields: name, phone' }),
             { status: 400, headers: CORS_HEADERS }
@@ -54,8 +56,8 @@ export default {
         index.unshift({
           id,
           timestamp: submission.timestamp,
-          name: body.name,
-          phone: body.phone,
+          name: name,
+          phone: phone,
           status: 'new',
         });
         await env.SUBMISSIONS.put('index', JSON.stringify(index));
