@@ -136,10 +136,16 @@
     border-radius: 6px; font-size: 14px; font-family: inherit;
     transition: border-color 0.2s, box-shadow 0.2s; background: var(--seed-surface);
   }
+  input[type="date"] { min-width: 160px; -webkit-appearance: none; }
+  input[type="date"]::-webkit-datetime-edit-year-field { min-width: 4em; }
+  input[type="date"]::-webkit-datetime-edit-month-field { min-width: 2.5em; }
+  input[type="date"]::-webkit-datetime-edit-day-field { min-width: 2.5em; }
   input:focus, select:focus, textarea:focus {
     outline: none; border-color: var(--seed-primary);
     box-shadow: 0 0 0 3px rgba(74,140,111,0.12);
   }
+  input.field-error { border-color: var(--seed-accent) !important; box-shadow: 0 0 0 3px rgba(192,83,77,0.15) !important; }
+  .field-error-msg { color: var(--seed-accent); font-size: 12px; margin-top: 3px; }
   textarea { resize: vertical; min-height: 60px; }
 
   /* ===== Checkbox / Radio ===== */
@@ -267,6 +273,80 @@
   .overlay-btn-ok:hover { background: var(--seed-primary-dark); }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* ===== Dynamic Injury Person Blocks ===== */
+  .injury-person-block {
+    border: 1px solid var(--seed-border);
+    border-radius: var(--seed-radius);
+    padding: 18px;
+    margin-bottom: 14px;
+    background: var(--seed-primary-light);
+    position: relative;
+  }
+  .injury-person-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--seed-border);
+  }
+  .injury-person-title {
+    font-size: 15px; font-weight: 600; color: var(--seed-primary);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .injury-person-title .person-num {
+    background: var(--seed-primary); color: white;
+    width: 22px; height: 22px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px;
+  }
+  .injury-person-remove {
+    background: none; border: 1px solid var(--seed-border); border-radius: 6px;
+    padding: 4px 10px; cursor: pointer; font-size: 12px; color: var(--seed-muted);
+    transition: all 0.2s;
+  }
+  .injury-person-remove:hover { border-color: var(--seed-accent); color: var(--seed-accent); }
+  .injury-count-control {
+    display: flex; align-items: center; gap: 10px; margin: 10px 0 16px;
+  }
+  .injury-count-control input {
+    width: 70px; text-align: center; padding: 6px 8px;
+  }
+  .injury-count-control .btn-add-person {
+    padding: 6px 14px; border: 1px dashed var(--seed-primary);
+    border-radius: 6px; background: transparent; color: var(--seed-primary);
+    cursor: pointer; font-size: 13px; transition: all 0.2s;
+  }
+  .injury-count-control .btn-add-person:hover {
+    background: var(--seed-primary-light);
+  }
+
+  /* Person type toggle within block */
+  .person-type-toggle {
+    display: flex; gap: 8px; margin: 8px 0;
+  }
+  .person-type-toggle label {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 14px; border: 1.5px solid var(--seed-border);
+    border-radius: 20px; cursor: pointer; font-size: 13px;
+    transition: all 0.2s; user-select: none;
+  }
+  .person-type-toggle input { display: none; }
+  .person-type-toggle label:has(input:checked) {
+    border-color: var(--seed-primary); background: var(--seed-primary-light);
+    color: var(--seed-primary); font-weight: 600;
+  }
+  .person-type-toggle label.deceased-opt:has(input:checked) {
+    border-color: var(--seed-accent); background: #faf0ef;
+    color: var(--seed-accent);
+  }
+  .death-fields {
+    background: #faf0ef; border: 1px solid #e8cdc9;
+    border-radius: var(--seed-radius); padding: 14px; margin-top: 10px;
+  }
+  .death-fields .death-label {
+    font-size: 13px; font-weight: 600; color: var(--seed-accent);
+    margin-bottom: 10px;
+  }
+  .injury-medical-fields { /* wrapper for medical fields, hidden when deceased */ }
 
   /* ===== Print ===== */
   @media print {
@@ -626,60 +706,19 @@
       </div>
     </div>
 
-    <!-- 三、人员受伤及就诊情况 -->
+    <!-- 三、人员伤亡及就诊情况 -->
     <div class="section">
-      <div class="section-title"><span class="num">3</span>人员受伤及就诊情况<span class="required-badge">必填</span></div>
-      <div class="form-row single">
-        <div class="form-group"><label><span class="star">*</span>受伤人员（可多选）</label>
-          <div class="check-group">
-            <label class="check-item"><input type="checkbox" name="injured_party" value="本人" required><span class="check-label">本人</span></label>
-            <label class="check-item"><input type="checkbox" name="injured_party" value="乘客"><span class="check-label">乘客</span></label>
-            <label class="check-item"><input type="checkbox" name="injured_party" value="对方人员"><span class="check-label">对方人员</span></label>
-            <label class="check-item"><input type="checkbox" name="injured_party" value="行人"><span class="check-label">行人</span></label>
-            <label class="check-item"><input type="checkbox" name="injured_party" value="无人伤"><span class="check-label">无人伤</span></label>
-          </div>
-        </div>
-      </div>
-      <div class="form-row single"><div class="form-group"><label>受伤部位</label><input type="text" name="injury_part" placeholder="如：左腿骨折、头部外伤等"></div></div>
+      <div class="section-title"><span class="num">3</span>人员伤亡及就诊情况<span class="required-badge">必填</span></div>
       <div class="form-row">
-        <div class="form-group"><label><span class="star">*</span>首次就诊医院</label><input type="text" name="hospital" placeholder="医院名称"></div>
-        <div class="form-group"><label><span class="star">*</span>初诊日期</label><input type="date" name="first_visit_date"></div>
-      </div>
-      <div class="form-row single"><div class="form-group"><label><span class="star">*</span>主要诊断</label><input type="text" name="diagnosis" placeholder="医院诊断结果简述"></div></div>
-      <div class="form-row single">
-        <div class="form-group"><label>是否住院</label>
-          <div class="check-group">
-            <label class="check-item"><input type="radio" name="hospitalized" value="否"><span class="check-label">否</span></label>
-            <label class="check-item"><input type="radio" name="hospitalized" value="是"><span class="check-label">是</span></label>
+        <div class="form-group">
+          <label><span class="star">*</span>伤亡人数</label>
+          <div class="injury-count-control">
+            <input type="number" id="injuredCount" min="0" max="20" value="1" onchange="updateInjuryPersons()">
+            <button type="button" class="btn-add-person" onclick="addInjuryPerson()">+ 增加伤亡人员</button>
           </div>
         </div>
       </div>
-      <div class="form-row" id="hospitalizationDetail" style="display:none">
-        <div class="form-group"><label>住院起止日期</label><input type="date" name="hosp_start"></div>
-        <div class="form-group"><label>至</label><input type="date" name="hosp_end"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>是否手术</label>
-          <div class="check-group">
-            <label class="check-item"><input type="radio" name="surgery" value="否"><span class="check-label">否</span></label>
-            <label class="check-item"><input type="radio" name="surgery" value="是"><span class="check-label">是</span></label>
-          </div>
-        </div>
-        <div class="form-group"><label>目前恢复情况</label>
-          <select name="recovery"><option value="">请选择</option><option value="已痊愈">已痊愈</option><option value="恢复中">恢复中</option><option value="需继续治疗">需继续治疗</option><option value="构成伤残">构成伤残</option></select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>是否已做伤残鉴定</label>
-          <div class="check-group">
-            <label class="check-item"><input type="radio" name="disability_assessed" value="未做"><span class="check-label">未做</span></label>
-            <label class="check-item"><input type="radio" name="disability_assessed" value="已做"><span class="check-label">已做</span></label>
-          </div>
-        </div>
-        <div class="form-group"><label>伤残等级（如已做）</label>
-          <select name="disability_level"><option value="">请选择</option><option value="一级">一级</option><option value="二级">二级</option><option value="三级">三级</option><option value="四级">四级</option><option value="五级">五级</option><option value="六级">六级</option><option value="七级">七级</option><option value="八级">八级</option><option value="九级">九级</option><option value="十级">十级</option></select>
-        </div>
-      </div>
+      <div id="injuryPersonsContainer"></div>
       <div class="form-row">
         <div class="form-group"><label>护理依赖程度</label>
           <select name="nursing_dependency">
@@ -843,10 +882,16 @@
       <div class="form-row single"><div class="form-group"><label>与当事人关系</label><input type="text" name="filler_relation" placeholder="例：本人 / 配偶 / 子女 / 朋友"></div></div>
     </div>
 
+    <!-- 底部提交按钮 -->
+    <div class="btn-group no-print" style="justify-content:center; margin-top:20px;">
+      <button type="button" class="btn btn-primary" onclick="submitForm()" style="min-width:220px; font-size:16px; padding:14px 36px;">&#10003; 提交问询单</button>
+    </div>
+
     <!-- 按钮 -->
     <div class="btn-group no-print">
       <button type="button" class="btn btn-secondary" onclick="clearForm()">清空重填</button>
-      <button type="button" class="btn btn-primary" onclick="window.print()">导出PDF回传</button>
+      <button type="button" class="btn btn-primary" onclick="submitForm()" style="flex:2;">&#10003; 提交问询单</button>
+      <button type="button" class="btn btn-secondary" onclick="window.print()">导出PDF回传</button>
     </div>
 
   </form>
@@ -1042,18 +1087,33 @@
 
   function calculateDeadlines(formData) {
     var accidentDateStr = formData.get('accident_date');
-    var firstVisitStr = formData.get('first_visit_date');
-    var recovery = formData.get('recovery') || '';
-    var disabilityAssessed = formData.get('disability_assessed') || '';
+    var recovery = formData.get('recovery_1') || '';
+    var disabilityAssessed = formData.get('disability_assessed_1') || '';
     var workRelated = formData.get('work_related') || '';
-    var injuredParty = formData.getAll('injured_party') || [];
     var litigationStatus = formData.get('litigation_status') || '';
     var liability = formData.get('liability') || '';
     var deadlines = [];
     var today = new Date();
     var accidentDate = accidentDateStr ? new Date(accidentDateStr) : null;
-    var firstVisitDate = firstVisitStr ? new Date(firstVisitStr) : null;
+
+    // Get first visit date from first injury person block
+    var firstVisitDateStr = formData.get('first_visit_date_1');
+    var firstVisitDate = firstVisitDateStr ? new Date(firstVisitDateStr) : null;
     var refDate = accidentDate || firstVisitDate || today;
+
+    // Check if any injured person is 本人 or 乘客 (and not deceased)
+    var hasSelfOrPassenger = false;
+    var hasDeath = false;
+    var blocks = document.querySelectorAll('.injury-person-block');
+    blocks.forEach(function(block) {
+      var checked = block.querySelector('[name^="injured_party_"]:checked');
+      var personTypeChecked = block.querySelector('[name^="person_type_"]:checked');
+      var isDeceased = personTypeChecked && personTypeChecked.value === '死亡';
+      if (isDeceased) hasDeath = true;
+      if (checked && (checked.value === '本人' || checked.value === '乘客') && !isDeceased) {
+        hasSelfOrPassenger = true;
+      }
+    });
 
     // 1. 工伤认定
     if (workRelated === '是' || workRelated === '不确定') {
@@ -1066,7 +1126,7 @@
     }
 
     // 2. 伤残鉴定
-    if ((injuredParty.indexOf('本人') >= 0 || injuredParty.indexOf('乘客') >= 0) && disabilityAssessed === '未做') {
+    if (hasSelfOrPassenger && disabilityAssessed === '未做') {
       var assessReady = firstVisitDate ? addMonths(firstVisitDate, 3) : addMonths(refDate, 3);
       deadlines.push({ item: '伤残等级鉴定', legal_basis: '《人体损伤致残程度分级》', deadline: formatDate(assessReady) + ' 起可做', remaining: '建议治疗终结后尽早', urgent: false, note: '一般在医疗终结或出院后3-6个月可进行鉴定，具体视伤情而定' });
     }
@@ -1124,12 +1184,6 @@
   form.addEventListener('input', updateProgress);
   form.addEventListener('change', updateProgress);
 
-  document.querySelectorAll('[name="hospitalized"]').forEach(function(radio) {
-    radio.addEventListener('change', function() {
-      document.getElementById('hospitalizationDetail').style.display = this.value === '是' ? 'grid' : 'none';
-    });
-  });
-
   // Vehicle owner section: show when party is NOT the vehicle owner
   document.querySelectorAll('[name="party_identity"]').forEach(function(radio) {
     radio.addEventListener('change', function() {
@@ -1142,23 +1196,340 @@
     });
   });
 
-  // Injured party: "无人伤" is mutually exclusive with other options
-  document.querySelectorAll('[name="injured_party"]').forEach(function(cb) {
-    cb.addEventListener('change', function() {
-      if (this.value === '无人伤' && this.checked) {
-        document.querySelectorAll('[name="injured_party"]').forEach(function(other) {
-          if (other.value !== '无人伤') other.checked = false;
-        });
-      } else if (this.value !== '无人伤' && this.checked) {
-        document.querySelectorAll('[name="injured_party"][value="无人伤"]').forEach(function(none) {
-          none.checked = false;
-        });
+  // Real-time ID card validation on blur
+  var idcardInput = form.querySelector('[name="idcard"]');
+  if (idcardInput) {
+    idcardInput.addEventListener('blur', function() {
+      clearFieldError(this);
+      if (this.value.trim() && !validateIdCard(this.value.trim())) {
+        showFieldError(this, '身份证号格式不正确或校验位错误');
       }
     });
-  });
+  }
+  var voIdcardInput = form.querySelector('[name="vo_idcard"]');
+  if (voIdcardInput) {
+    voIdcardInput.addEventListener('blur', function() {
+      clearFieldError(this);
+      if (this.value.trim() && !validateIdCard(this.value.trim())) {
+        showFieldError(this, '身份证号格式不正确或校验位错误');
+      }
+    });
+  }
+
+  // ===== Dynamic Injury Person Blocks =====
+  var injuryPersonCount = 0;
+
+  function createInjuryPersonBlock(index) {
+    var todayStr = new Date().toISOString().split('T')[0];
+    var block = document.createElement('div');
+    block.className = 'injury-person-block';
+    block.id = 'injuryPerson_' + index;
+    block.innerHTML =
+      '<div class="injury-person-header">' +
+        '<div class="injury-person-title"><span class="person-num">' + index + '</span>伤亡人员 ' + index + '</div>' +
+        (index > 1 ? '<button type="button" class="injury-person-remove" onclick="removeInjuryPerson(' + index + ')">移除</button>' : '') +
+      '</div>' +
+      // Person type: injured or deceased
+      '<div class="form-row">' +
+        '<div class="form-group"><label><span class="star">*</span>人员类型</label>' +
+          '<div class="person-type-toggle">' +
+            '<label><input type="radio" name="person_type_' + index + '" value="受伤" checked onchange="togglePersonType(' + index + ')"> 受伤</label>' +
+            '<label class="deceased-opt"><input type="radio" name="person_type_' + index + '" value="死亡" onchange="togglePersonType(' + index + ')"> 死亡</label>' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-group"><label><span class="star">*</span>受伤人员分类</label>' +
+          '<div class="check-group">' +
+            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="本人" ' + (index === 1 ? 'required checked' : '') + '><span class="check-label">本人</span></label>' +
+            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="乘客"><span class="check-label">乘客</span></label>' +
+            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="对方人员"><span class="check-label">对方人员</span></label>' +
+            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="行人"><span class="check-label">行人</span></label>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      // Name and age/birthdate
+      '<div class="form-row">' +
+        '<div class="form-group"><label>姓名</label><input type="text" name="injured_name_' + index + '" placeholder="姓名"></div>' +
+        '<div class="form-group"><label>年龄 / 出生日期</label>' +
+          '<div style="display:flex;gap:6px;align-items:center;">' +
+            '<input type="number" name="age_' + index + '" min="0" max="150" placeholder="年龄" style="width:80px;flex:none;" oninput="calcBirthFromAge(' + index + ')">' +
+            '<span style="color:var(--seed-muted);font-size:12px;">或</span>' +
+            '<input type="date" name="birthdate_' + index + '" onchange="calcAgeFromBirth(' + index + ')">' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      // ===== Injury medical fields (hidden when deceased) =====
+      '<div class="injury-medical-fields injury-medical-' + index + '">' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label>受伤部位</label><input type="text" name="injury_part_' + index + '" placeholder="如：左腿骨折、头部外伤等"></div>' +
+          '<div class="form-group"><label><span class="star">*</span>首次就诊医院</label><input type="text" name="hospital_' + index + '" required placeholder="医院名称"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label><span class="star">*</span>初诊日期</label><input type="date" name="first_visit_date_' + index + '" required value="' + todayStr + '"></div>' +
+          '<div class="form-group"><label><span class="star">*</span>主要诊断</label><input type="text" name="diagnosis_' + index + '" required placeholder="医院诊断结果简述"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label>是否住院</label>' +
+            '<div class="check-group">' +
+              '<label class="check-item"><input type="radio" name="hospitalized_' + index + '" value="否" checked onchange="toggleHospDetail(' + index + ')"><span class="check-label">否</span></label>' +
+              '<label class="check-item"><input type="radio" name="hospitalized_' + index + '" value="是" onchange="toggleHospDetail(' + index + ')"><span class="check-label">是</span></label>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-row hosp-detail-' + index + '" style="display:none">' +
+          '<div class="form-group"><label>入院日期</label><input type="date" name="hosp_start_' + index + '" value="' + todayStr + '" onchange="calcDischargeDate(' + index + ')"></div>' +
+          '<div class="form-group"><label>住院天数</label><input type="number" name="hosp_days_' + index + '" min="0" max="999" placeholder="可选" onchange="calcDischargeDate(' + index + ')" oninput="calcDischargeDate(' + index + ')"></div>' +
+        '</div>' +
+        '<div class="form-row hosp-detail-' + index + '" style="display:none">' +
+          '<div class="form-group"><label>出院日期（自动计算）</label><input type="date" name="hosp_end_' + index + '" readonly style="background:#f4f7f4;"></div>' +
+          '<div class="form-group"></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label>是否手术</label>' +
+            '<div class="check-group">' +
+              '<label class="check-item"><input type="radio" name="surgery_' + index + '" value="否" checked><span class="check-label">否</span></label>' +
+              '<label class="check-item"><input type="radio" name="surgery_' + index + '" value="是"><span class="check-label">是</span></label>' +
+            '</div>' +
+          '</div>' +
+          '<div class="form-group"><label>目前恢复情况</label>' +
+            '<select name="recovery_' + index + '"><option value="">请选择</option><option value="已痊愈">已痊愈</option><option value="恢复中">恢复中</option><option value="需继续治疗">需继续治疗</option><option value="构成伤残">构成伤残</option></select>' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label>是否已做伤残鉴定</label>' +
+            '<div class="check-group">' +
+              '<label class="check-item"><input type="radio" name="disability_assessed_' + index + '" value="未做" checked><span class="check-label">未做</span></label>' +
+              '<label class="check-item"><input type="radio" name="disability_assessed_' + index + '" value="已做"><span class="check-label">已做</span></label>' +
+            '</div>' +
+          '</div>' +
+          '<div class="form-group"><label>伤残等级（如已做）</label>' +
+            '<select name="disability_level_' + index + '"><option value="">请选择</option><option value="一级">一级</option><option value="二级">二级</option><option value="三级">三级</option><option value="四级">四级</option><option value="五级">五级</option><option value="六级">六级</option><option value="七级">七级</option><option value="八级">八级</option><option value="九级">九级</option><option value="十级">十级</option></select>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      // ===== Death fields (hidden by default, shown when deceased) =====
+      '<div class="death-fields death-fields-' + index + '" style="display:none">' +
+        '<div class="death-label">&#9760; 死亡信息</div>' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label>死亡日期</label><input type="date" name="death_date_' + index + '"></div>' +
+          '<div class="form-group"><label>死亡原因</label>' +
+            '<select name="death_cause_' + index + '">' +
+              '<option value="">请选择</option>' +
+              '<option value="当场死亡">当场死亡</option>' +
+              '<option value="送医抢救无效">送医抢救无效</option>' +
+              '<option value="住院期间死亡">住院期间死亡</option>' +
+              '<option value="出院后死亡">出院后死亡</option>' +
+              '<option value="其他">其他</option>' +
+            '</select>' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-row single"><div class="form-group"><label>死亡诊断 / 尸检结论</label><input type="text" name="death_diagnosis_' + index + '" placeholder="如：颅脑损伤死亡"></div></div>' +
+      '</div>';
+    return block;
+  }
+
+  function addInjuryPerson() {
+    injuryPersonCount++;
+    document.getElementById('injuredCount').value = injuryPersonCount;
+    var container = document.getElementById('injuryPersonsContainer');
+    container.appendChild(createInjuryPersonBlock(injuryPersonCount));
+    updateProgress();
+  }
+
+  function removeInjuryPerson(index) {
+    var block = document.getElementById('injuryPerson_' + index);
+    if (block) {
+      block.remove();
+      injuryPersonCount--;
+      document.getElementById('injuredCount').value = injuryPersonCount;
+      // Re-number remaining blocks
+      var blocks = document.querySelectorAll('.injury-person-block');
+      blocks.forEach(function(b, i) {
+        var titleEl = b.querySelector('.injury-person-title');
+        var numEl = b.querySelector('.person-num');
+        if (titleEl && numEl) {
+          var newIdx = i + 1;
+          numEl.textContent = newIdx;
+          titleEl.innerHTML = '';
+          titleEl.appendChild(numEl);
+          titleEl.appendChild(document.createTextNode(' 伤亡人员 ' + newIdx));
+        }
+      });
+      updateProgress();
+    }
+  }
+
+  function updateInjuryPersons() {
+    var count = parseInt(document.getElementById('injuredCount').value) || 0;
+    if (count < 0) count = 0;
+    if (count > 20) count = 20;
+    var container = document.getElementById('injuryPersonsContainer');
+    var currentBlocks = container.querySelectorAll('.injury-person-block');
+    var currentCount = currentBlocks.length;
+
+    if (count > currentCount) {
+      for (var i = currentCount + 1; i <= count; i++) {
+        injuryPersonCount++;
+        container.appendChild(createInjuryPersonBlock(injuryPersonCount));
+      }
+    } else if (count < currentCount) {
+      for (var j = currentCount; j > count; j--) {
+        var lastBlock = container.lastElementChild;
+        if (lastBlock) lastBlock.remove();
+      }
+      injuryPersonCount = count;
+    }
+    document.getElementById('injuredCount').value = count;
+    updateProgress();
+  }
+
+  function toggleHospDetail(index) {
+    var radios = document.querySelectorAll('[name="hospitalized_' + index + '"]');
+    var isHosp = false;
+    radios.forEach(function(r) { if (r.checked && r.value === '是') isHosp = true; });
+    var details = document.querySelectorAll('.hosp-detail-' + index);
+    details.forEach(function(d) { d.style.display = isHosp ? 'grid' : 'none'; });
+  }
+
+  function calcDischargeDate(index) {
+    var startInput = document.querySelector('[name="hosp_start_' + index + '"]');
+    var daysInput = document.querySelector('[name="hosp_days_' + index + '"]');
+    var endInput = document.querySelector('[name="hosp_end_' + index + '"]');
+    if (startInput && startInput.value && daysInput && daysInput.value) {
+      var startDate = new Date(startInput.value);
+      var days = parseInt(daysInput.value) || 0;
+      var endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + days);
+      endInput.value = endDate.toISOString().split('T')[0];
+    }
+  }
+
+  function togglePersonType(index) {
+    var radios = document.querySelectorAll('[name="person_type_' + index + '"]');
+    var isDeceased = false;
+    radios.forEach(function(r) { if (r.checked && r.value === '死亡') isDeceased = true; });
+    // Toggle medical fields visibility
+    var medFields = document.querySelectorAll('.injury-medical-' + index);
+    medFields.forEach(function(el) { el.style.display = isDeceased ? 'none' : ''; });
+    // Toggle death fields visibility
+    var deathFields = document.querySelectorAll('.death-fields-' + index);
+    deathFields.forEach(function(el) { el.style.display = isDeceased ? '' : 'none'; });
+    // Remove/add required from medical fields when deceased
+    var block = document.getElementById('injuryPerson_' + index);
+    if (block) {
+      block.querySelectorAll('.injury-medical-' + index + ' [required]').forEach(function(el) {
+        el.required = !isDeceased;
+      });
+    }
+    updateProgress();
+  }
+
+  function calcBirthFromAge(index) {
+    var ageInput = document.querySelector('[name="age_' + index + '"]');
+    var birthInput = document.querySelector('[name="birthdate_' + index + '"]');
+    if (ageInput && ageInput.value && birthInput) {
+      var age = parseInt(ageInput.value);
+      if (!isNaN(age) && age >= 0) {
+        var today = new Date();
+        var birthYear = today.getFullYear() - age;
+        birthInput.value = birthYear + '-01-01';
+      }
+    }
+  }
+
+  function calcAgeFromBirth(index) {
+    var birthInput = document.querySelector('[name="birthdate_' + index + '"]');
+    var ageInput = document.querySelector('[name="age_' + index + '"]');
+    if (birthInput && birthInput.value && ageInput) {
+      var birthDate = new Date(birthInput.value);
+      var today = new Date();
+      var age = today.getFullYear() - birthDate.getFullYear();
+      var monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      ageInput.value = age >= 0 ? age : '';
+    }
+  }
+
+  // ===== ID Card Validation (Chinese 18-digit) =====
+  function validateIdCard(id) {
+    if (!id || id.length !== 18) return false;
+    // Check format: 17 digits + check digit (digit or X)
+    if (!/^\d{17}[\dXx]$/.test(id)) return false;
+    // Weighted checksum validation
+    var weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+    var checkCodes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
+    var sum = 0;
+    for (var i = 0; i < 17; i++) {
+      sum += parseInt(id.charAt(i)) * weights[i];
+    }
+    var expectedCheck = checkCodes[sum % 11];
+    return id.charAt(17).toUpperCase() === expectedCheck;
+  }
+
+  function showFieldError(input, msg) {
+    input.classList.add('field-error');
+    var existing = input.parentNode.querySelector('.field-error-msg');
+    if (existing) existing.remove();
+    var errDiv = document.createElement('div');
+    errDiv.className = 'field-error-msg';
+    errDiv.textContent = msg;
+    input.parentNode.appendChild(errDiv);
+  }
+
+  function clearFieldError(input) {
+    input.classList.remove('field-error');
+    var existing = input.parentNode.querySelector('.field-error-msg');
+    if (existing) existing.remove();
+  }
+
+  // ===== Date Defaults & Cross-Validation =====
+  function setDefaultDates() {
+    var todayStr = new Date().toISOString().split('T')[0];
+    // Set accident_date default to today
+    var accidentDate = document.querySelector('[name="accident_date"]');
+    if (accidentDate && !accidentDate.value) accidentDate.value = todayStr;
+    // Birthdate and first_visit_date defaults are set in injury block creation
+  }
+
+  function validateDates() {
+    var errors = [];
+    var accidentDateStr = document.querySelector('[name="accident_date"]');
+    var accidentDate = accidentDateStr ? new Date(accidentDateStr.value) : null;
+
+    // Check each person's first_visit_date and death_date is after accident_date
+    var blocks = document.querySelectorAll('.injury-person-block');
+    blocks.forEach(function(block, idx) {
+      // Check first_visit_date
+      var visitDateInputs = block.querySelectorAll('[name^="first_visit_date_"]');
+      visitDateInputs.forEach(function(vdi) {
+        if (vdi.value && accidentDate) {
+          var visitDate = new Date(vdi.value);
+          if (visitDate < accidentDate) {
+            errors.push({ input: vdi, msg: '初诊日期不能早于事故发生日期' });
+          }
+        }
+      });
+      // Check death_date
+      var deathDateInputs = block.querySelectorAll('[name^="death_date_"]');
+      deathDateInputs.forEach(function(ddi) {
+        if (ddi.value && accidentDate) {
+          var deathDate = new Date(ddi.value);
+          if (deathDate < accidentDate) {
+            errors.push({ input: ddi, msg: '死亡日期不能早于事故发生日期' });
+          }
+        }
+      });
+    });
+    return errors;
+  }
 
   // ===== Submit =====
   function submitForm() {
+    // Clear previous errors
+    document.querySelectorAll('.field-error').forEach(function(el) { el.classList.remove('field-error'); });
+    document.querySelectorAll('.field-error-msg').forEach(function(el) { el.remove(); });
+
     var requiredFields = form.querySelectorAll('[required]');
     var allValid = true, firstInvalid = null;
 
@@ -1179,16 +1550,46 @@
         }
       } else if (!field.value || field.value.trim() === '') {
         allValid = false;
-        field.style.borderColor = '#c0534d';
+        field.classList.add('field-error');
         if (!firstInvalid) firstInvalid = field;
       } else {
-        field.style.borderColor = '';
+        field.classList.remove('field-error');
       }
     });
 
+    // ID card validation
+    var idcardInput = form.querySelector('[name="idcard"]');
+    if (idcardInput && idcardInput.value.trim()) {
+      if (!validateIdCard(idcardInput.value.trim())) {
+        allValid = false;
+        showFieldError(idcardInput, '身份证号格式不正确或校验位错误');
+        if (!firstInvalid) firstInvalid = idcardInput;
+      }
+    }
+
+    // Vehicle owner ID card validation
+    var voIdcardInput = form.querySelector('[name="vo_idcard"]');
+    if (voIdcardInput && voIdcardInput.value.trim()) {
+      if (!validateIdCard(voIdcardInput.value.trim())) {
+        allValid = false;
+        showFieldError(voIdcardInput, '身份证号格式不正确或校验位错误');
+        if (!firstInvalid) firstInvalid = voIdcardInput;
+      }
+    }
+
+    // Date cross-validation
+    var dateErrors = validateDates();
+    if (dateErrors.length > 0) {
+      allValid = false;
+      dateErrors.forEach(function(err) {
+        showFieldError(err.input, err.msg);
+      });
+      if (!firstInvalid) firstInvalid = dateErrors[0].input;
+    }
+
     if (!allValid) {
       if (firstInvalid) firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      alert('请完成所有必填项（标有 * 的项目）后再提交。');
+      alert('请完成所有必填项（标有 * 的项目）并修正错误后再提交。');
       return;
     }
 
@@ -1202,6 +1603,45 @@
       } else { result[key] = value; }
     }
 
+    // Collect dynamic injury person data
+    var injuryPersons = [];
+    var blocks = document.querySelectorAll('.injury-person-block');
+    blocks.forEach(function(block, idx) {
+      var personIdx = idx + 1;
+      var personData = {};
+      // Helper to get value from block
+      function getVal(name) {
+        var el = block.querySelector('[name="' + name + '_' + personIdx + '"]');
+        return el ? (el.value || '') : '';
+      }
+      function getRadio(name) {
+        var checked = block.querySelector('[name="' + name + '_' + personIdx + '"]:checked');
+        return checked ? checked.value : '';
+      }
+      personData.type = getRadio('injured_party');
+      personData.person_type = getRadio('person_type') || '受伤';
+      personData.name = getVal('injured_name');
+      personData.age = getVal('age');
+      personData.birthdate = getVal('birthdate');
+      personData.injury_part = getVal('injury_part');
+      personData.hospital = getVal('hospital');
+      personData.first_visit_date = getVal('first_visit_date');
+      personData.diagnosis = getVal('diagnosis');
+      personData.hospitalized = getRadio('hospitalized');
+      personData.hosp_start = getVal('hosp_start');
+      personData.hosp_days = getVal('hosp_days');
+      personData.hosp_end = getVal('hosp_end');
+      personData.surgery = getRadio('surgery');
+      personData.recovery = getVal('recovery');
+      personData.disability_assessed = getRadio('disability_assessed');
+      personData.disability_level = getVal('disability_level');
+      // Death fields
+      personData.death_date = getVal('death_date');
+      personData.death_cause = getVal('death_cause');
+      personData.death_diagnosis = getVal('death_diagnosis');
+      injuryPersons.push(personData);
+    });
+
     var now = new Date();
     var caseId = 'TA-' + now.getFullYear() +
       String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') +
@@ -1211,12 +1651,13 @@
     var deadlines = calculateDeadlines(data);
 
     var payload = {
-      _meta: { case_id: caseId, form_version: '2.0', submit_time: now.toISOString(), skill: 'traffic-accident-intake', config: loadConfigFromURL() },
+      _meta: { case_id: caseId, form_version: '2.1', submit_time: now.toISOString(), skill: 'traffic-accident-intake', config: loadConfigFromURL() },
       sections: {
         basic_info: { name: result.name||'', gender: result.gender||'', birthdate: result.birthdate||'', idcard: result.idcard||'', phone: result.phone||'', emergency_phone: result.emergency_phone||'', address: result.address||'', occupation: result.occupation||'', employer: result.employer||'', party_identity: result.party_identity||'' },
         vehicle_owner: { name: result.vo_name||'', relationship: result.vo_relationship||'', phone: result.vo_phone||'', idcard: result.vo_idcard||'' },
         accident: { date: result.accident_date||'', time: result.accident_time||'', location: result.accident_location||'', weather: result.weather||[], liability: result.liability||'', liability_ratio: result.liability_ratio||'', reported: result.reported||'', report_no: result.report_no||'', accident_type: result.accident_type||'', commercial: result.commercial||'', work_related: result.work_related||'' },
-        injury: { injured_party: result.injured_party||[], injury_part: result.injury_part||'', hospital: result.hospital||'', first_visit_date: result.first_visit_date||'', diagnosis: result.diagnosis||'', hospitalized: result.hospitalized||'', hosp_start: result.hosp_start||'', hosp_end: result.hosp_end||'', surgery: result.surgery||'', recovery: result.recovery||'', disability_assessed: result.disability_assessed||'', disability_level: result.disability_level||'', nursing_dependency: result.nursing_dependency||'', nursing_count: result.nursing_count||'', nursing_note: result.nursing_note||'' },
+        injury_persons: injuryPersons,
+        nursing: { dependency: result.nursing_dependency||'', count: result.nursing_count||'', note: result.nursing_note||'' },
         insurance: { types: result.insurance||[], insurer: result.insurer||'', policy_info: result.policy_info||'', opposite_insurance: result.opposite_insurance||'' },
         property: { vehicle_type: result.vehicle_type||'', drivable: result.drivable||'', vehicle_damage: result.vehicle_damage||'', repair_status: result.repair_status||'', other_property_loss: result.other_property_loss||'' },
         criminal: { risks: result.criminal_risk||[], note: result.criminal_note||'' },
@@ -1281,8 +1722,16 @@
   function clearForm() {
     if (confirm('确定要清空所有已填写的内容吗？')) {
       form.reset(); updateProgress();
-      document.getElementById('hospitalizationDetail').style.display = 'none';
       document.getElementById('vehicleOwnerSection').classList.remove('visible');
+      // Reset injury persons to 1
+      var container = document.getElementById('injuryPersonsContainer');
+      container.innerHTML = '';
+      injuryPersonCount = 1;
+      document.getElementById('injuredCount').value = 1;
+      container.appendChild(createInjuryPersonBlock(1));
+      // Re-set default dates
+      setDefaultDates();
+      updateProgress();
     }
   }
 
@@ -1315,6 +1764,12 @@
       clickTimer = setTimeout(function() { clickCount = 0; }, 500);
     }
   });
+
+  // Initialize: set default dates and create first injury person block
+  setDefaultDates();
+  injuryPersonCount = 1;
+  document.getElementById('injuryPersonsContainer').appendChild(createInjuryPersonBlock(1));
+  updateProgress();
 </script>
 <!--CONFIG_MARKER-->
 </body>

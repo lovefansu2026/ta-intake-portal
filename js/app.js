@@ -39,7 +39,9 @@
       source: submission,
       basicInfo: submission.sections ? submission.sections.basic_info : {},
       accident: submission.sections ? submission.sections.accident : {},
-      injury: submission.sections ? submission.sections.injury : {},
+      injury: submission.sections ? (submission.sections.injury || {}) : {},
+      injury_persons: submission.sections ? (submission.sections.injury_persons || []) : [],
+      nursing: submission.sections ? (submission.sections.nursing || {}) : {},
       deadlines: submission.deadline_reminders || [],
       demands: submission.sections ? submission.sections.demands : {},
       litigation: submission.sections ? submission.sections.litigation : {},
@@ -211,7 +213,9 @@
             source: data,
             basicInfo: data.sections ? data.sections.basic_info : {},
             accident: data.sections ? data.sections.accident : {},
-            injury: data.sections ? data.sections.injury : {},
+            injury: data.sections ? (data.sections.injury || {}) : {},
+            injury_persons: data.sections ? (data.sections.injury_persons || []) : [],
+            nursing: data.sections ? (data.sections.nursing || {}) : {},
             deadlines: data.deadline_reminders || [],
             demands: data.sections ? data.sections.demands : {},
             litigation: data.sections ? data.sections.litigation : {},
@@ -370,7 +374,22 @@
       var accidentDate = c.accident.date || '—';
       var liability = c.accident.liability || '—';
       var phone = c.basicInfo.phone || '';
-      var injury = c.injury.diagnosis || '';
+      var injury = '';
+      if (c.injury_persons && c.injury_persons.length > 0) {
+        injury = c.injury_persons.map(function(p) {
+          var parts = [];
+          if (p.person_type === '死亡') {
+            parts.push('死亡' + (p.name ? '(' + p.name + ')' : ''));
+            if (p.death_cause) parts.push(p.death_cause);
+          } else {
+            if (p.diagnosis) parts.push(p.diagnosis);
+          }
+          if (p.age) parts.push(p.age + '岁');
+          return parts.join(' ');
+        }).filter(Boolean).join('；');
+      } else if (c.injury && c.injury.diagnosis) {
+        injury = c.injury.diagnosis;
+      }
       var progress = getCaseProgress(c);
 
       html += '<div class="case-card">' +
@@ -407,7 +426,15 @@
     var p = 0;
     if (c.basicInfo && c.basicInfo.name) p += 15;
     if (c.accident && c.accident.date) p += 15;
-    if (c.injury && c.injury.diagnosis) p += 15;
+    var hasInjury = false;
+    if (c.injury_persons && c.injury_persons.length > 0) {
+      hasInjury = c.injury_persons.some(function(p) {
+        return p.diagnosis || p.death_diagnosis || p.death_cause;
+      });
+    } else if (c.injury && c.injury.diagnosis) {
+      hasInjury = true;
+    }
+    if (hasInjury) p += 15;
     if (c.litigation && c.litigation.status) p += 10;
     if (c.materials && c.materials.checklist && c.materials.checklist.length > 0) p += 15;
     if (c.deadlines && c.deadlines.length > 0) p += 10;
