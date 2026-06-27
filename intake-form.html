@@ -1769,6 +1769,7 @@
 
   // ===== Submit =====
   function submitForm() {
+  try { // --- error-catch wrapper start ---
     // Clear previous errors
     document.querySelectorAll('.field-error').forEach(function(el) { el.classList.remove('field-error'); });
     document.querySelectorAll('.field-error-msg').forEach(function(el) { el.remove(); });
@@ -2011,6 +2012,9 @@
     }
     document.getElementById('overlaySteps').innerHTML = stepsHTML;
     document.getElementById('successOverlay').classList.add('active');
+  } catch(e) { // --- error-catch wrapper end ---
+    alert('⚠ 提交时发生错误：\n\n' + e.message + '\n\n请截图此弹窗发送给技术人员。');
+  }
   }
 
   function closeOverlay() { document.getElementById('successOverlay').classList.remove('active'); }
