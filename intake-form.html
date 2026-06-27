@@ -741,23 +741,46 @@
     <!-- 四、保险信息 -->
     <div class="section">
       <div class="section-title"><span class="num">4</span>保险信息</div>
-      <div class="form-row single">
-        <div class="form-group"><label>已知险种（可多选）</label>
-          <div class="check-group">
-            <label class="check-item"><input type="checkbox" name="insurance" value="交强险"><span class="check-label">交强险</span></label>
-            <label class="check-item"><input type="checkbox" name="insurance" value="商业三者险"><span class="check-label">商业三者险</span></label>
-            <label class="check-item"><input type="checkbox" name="insurance" value="车损险"><span class="check-label">车损险</span></label>
-            <label class="check-item"><input type="checkbox" name="insurance" value="车上人员责任险"><span class="check-label">车上人员责任险</span></label>
-            <label class="check-item"><input type="checkbox" name="insurance" value="驾乘意外险"><span class="check-label">驾乘意外险</span></label>
-            <label class="check-item"><input type="checkbox" name="insurance" value="工伤险"><span class="check-label">工伤险</span></label>
+
+      <!-- 己方保险 -->
+      <div style="margin-bottom:20px;">
+        <div style="font-weight:600;font-size:14px;margin-bottom:8px;color:var(--text-primary);">己方保险（本人/本方车辆）</div>
+        <div class="form-group">
+          <label>已知险种（可多选；如不清楚具体险种请勾选下方"不清楚"）</label>
+          <div class="check-group" id="ownInsuranceGroup">
+            <label class="check-item"><input type="checkbox" name="insurance" value="交强险" onchange="onOwnInsuranceChange()"><span class="check-label">交强险</span></label>
+            <label class="check-item"><input type="checkbox" name="insurance" value="商业三者险" onchange="onOwnInsuranceChange()"><span class="check-label">商业三者险</span></label>
+            <label class="check-item"><input type="checkbox" name="insurance" value="车损险" onchange="onOwnInsuranceChange()"><span class="check-label">车损险</span></label>
+            <label class="check-item"><input type="checkbox" name="insurance" value="车上人员责任险" onchange="onOwnInsuranceChange()"><span class="check-label">车上人员责任险</span></label>
+            <label class="check-item"><input type="checkbox" name="insurance" value="驾乘意外险" onchange="onOwnInsuranceChange()"><span class="check-label">驾乘意外险</span></label>
+            <label class="check-item"><input type="checkbox" name="insurance" value="工伤险" onchange="onOwnInsuranceChange()"><span class="check-label">工伤险</span></label>
+            <label class="check-item" style="border-left:2px solid var(--border);padding-left:10px;margin-left:4px;"><input type="checkbox" name="insurance_unclear_own" value="不清楚具体险种" onchange="onOwnInsuranceUnclear(this)"><span class="check-label" style="color:var(--text-muted);">不清楚具体险种</span></label>
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group"><label>保险公司</label><input type="text" name="insurer" placeholder="保险公司名称"></div>
+          <div class="form-group"><label>保单号/保额</label><input type="text" name="policy_info" placeholder="保单号及保额"></div>
+        </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>保险公司</label><input type="text" name="insurer" placeholder="保险公司名称"></div>
-        <div class="form-group"><label>保单号/保额</label><input type="text" name="policy_info" placeholder="保单号及保额"></div>
+
+      <!-- 对方保险 -->
+      <div>
+        <div style="font-weight:600;font-size:14px;margin-bottom:8px;color:var(--text-primary);">对方保险（如已知，可多选）</div>
+        <div class="form-group">
+          <div class="check-group" id="oppositeInsuranceGroup">
+            <label class="check-item"><input type="checkbox" name="opposite_insurance_type" value="交强险"><span class="check-label">交强险</span></label>
+            <label class="check-item"><input type="checkbox" name="opposite_insurance_type" value="商业三者险"><span class="check-label">商业三者险</span></label>
+            <label class="check-item"><input type="checkbox" name="opposite_insurance_type" value="车损险"><span class="check-label">车损险</span></label>
+            <label class="check-item"><input type="checkbox" name="opposite_insurance_type" value="车上人员责任险"><span class="check-label">车上人员责任险</span></label>
+            <label class="check-item"><input type="checkbox" name="opposite_insurance_type" value="驾乘意外险"><span class="check-label">驾乘意外险</span></label>
+            <label class="check-item" style="border-left:2px solid var(--border);padding-left:10px;margin-left:4px;"><input type="checkbox" name="opposite_insurance_unclear" value="不清楚对方保险情况" onchange="onOppositeInsuranceUnclear(this)"><span class="check-label" style="color:var(--text-muted);">不清楚对方保险情况</span></label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>对方保险公司（如已知）</label><input type="text" name="opposite_insurer" placeholder="对方保险公司名称"></div>
+          <div class="form-group"><label>对方保单号（如已知）</label><input type="text" name="opposite_policy_info" placeholder="对方保单号"></div>
+        </div>
       </div>
-      <div class="form-row single"><div class="form-group"><label>对方保险信息（如已知）</label><input type="text" name="opposite_insurance" placeholder="对方保险公司、保单号等"></div></div>
     </div>
 
     <!-- 五、财产损失 -->
@@ -1462,6 +1485,54 @@
     updateProgress();
   }
 
+  // ===== Insurance "不清楚" toggle =====
+  function onOwnInsuranceUnclear(el) {
+    var group = document.getElementById('ownInsuranceGroup');
+    if (!group) return;
+    var checks = group.querySelectorAll('input[name="insurance"]');
+    checks.forEach(function(cb) {
+      if (el.checked) {
+        cb.checked = false;
+        cb.disabled = true;
+        cb.closest('.check-item').style.opacity = '0.4';
+      } else {
+        cb.disabled = false;
+        cb.closest('.check-item').style.opacity = '';
+      }
+    });
+    updateProgress();
+  }
+
+  function onOwnInsuranceChange() {
+    var group = document.getElementById('ownInsuranceGroup');
+    if (!group) return;
+    var unclear = group.querySelector('input[name="insurance_unclear_own"]');
+    if (unclear) {
+      var anyChecked = Array.from(group.querySelectorAll('input[name="insurance"]')).some(function(cb) { return cb.checked; });
+      if (anyChecked && unclear.checked) {
+        unclear.checked = false;
+      }
+    }
+    updateProgress();
+  }
+
+  function onOppositeInsuranceUnclear(el) {
+    var group = document.getElementById('oppositeInsuranceGroup');
+    if (!group) return;
+    var checks = group.querySelectorAll('input[name="opposite_insurance_type"]');
+    checks.forEach(function(cb) {
+      if (el.checked) {
+        cb.checked = false;
+        cb.disabled = true;
+        cb.closest('.check-item').style.opacity = '0.4';
+      } else {
+        cb.disabled = false;
+        cb.closest('.check-item').style.opacity = '';
+      }
+    });
+    updateProgress();
+  }
+
   function calcBirthFromAge(index) {
     var ageInput = document.querySelector('[name="age_' + index + '"]');
     var birthInput = document.querySelector('[name="birthdate_' + index + '"]');
@@ -1711,7 +1782,16 @@
         accident: { date: result.accident_date||'', time: result.accident_time||'', location: result.accident_location||'', weather: result.weather||[], liability: result.liability||'', liability_ratio: result.liability_ratio||'', reported: result.reported||'', report_no: result.report_no||'', accident_type: result.accident_type||'', commercial: result.commercial||'', work_related: result.work_related||'' },
         injury_persons: injuryPersons,
         nursing: { dependency: result.nursing_dependency||'', count: result.nursing_count||'', note: result.nursing_note||'' },
-        insurance: { types: result.insurance||[], insurer: result.insurer||'', policy_info: result.policy_info||'', opposite_insurance: result.opposite_insurance||'' },
+        insurance: {
+          own_types: result.insurance || [],
+          own_unclear: result.insurance_unclear_own ? true : false,
+          insurer: result.insurer || '',
+          policy_info: result.policy_info || '',
+          opposite_types: result.opposite_insurance_type || [],
+          opposite_unclear: result.opposite_insurance_unclear ? true : false,
+          opposite_insurer: result.opposite_insurer || '',
+          opposite_policy_info: result.opposite_policy_info || ''
+        },
         property: { vehicle_type: result.vehicle_type||'', drivable: result.drivable||'', vehicle_damage: result.vehicle_damage||'', repair_status: result.repair_status||'', other_property_loss: result.other_property_loss||'' },
         criminal: { risks: result.criminal_risk||[], note: result.criminal_note||'' },
         demands: { main: result.demands||[], other: result.other_demands||'' },
@@ -1782,6 +1862,11 @@
       injuryPersonCount = 1;
       document.getElementById('injuredCount').value = 1;
       container.appendChild(createInjuryPersonBlock(1));
+      // Re-enable insurance checkboxes (in case "不清楚" disabled them)
+      document.querySelectorAll('#ownInsuranceGroup input, #oppositeInsuranceGroup input').forEach(function(cb) {
+        cb.disabled = false;
+        if (cb.closest('.check-item')) cb.closest('.check-item').style.opacity = '';
+      });
       // Re-set default dates and auto-fill
       setDefaultDates();
       onPartyTypeChange(1);
