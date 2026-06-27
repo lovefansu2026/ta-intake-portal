@@ -1220,9 +1220,24 @@
       if (t.classList.contains('cdi-year') && t.value.length === 4) {
         var next = t.parentElement.querySelector('.cdi-month');
         if (next) next.focus();
-      } else if (t.classList.contains('cdi-month') && t.value.length === 2) {
-        var day = t.parentElement.querySelector('.cdi-day');
-        if (day) day.focus();
+      } else if (t.classList.contains('cdi-month')) {
+        var v = parseInt(t.value);
+        // Auto-tab if month is unambiguous: 2-9 (single digit), or 10-12 (two digits)
+        if (t.value.length === 1 && v >= 2) {
+          var day = t.parentElement.querySelector('.cdi-day');
+          if (day) day.focus();
+        } else if (t.value.length === 2) {
+          var day2 = t.parentElement.querySelector('.cdi-day');
+          if (day2) day2.focus();
+        }
+      } else if (t.classList.contains('cdi-day')) {
+        var dv = parseInt(t.value);
+        // Auto-tab (or blur) if day is unambiguous: 4-9 single digit, or 10-31 two digits
+        if (t.value.length === 1 && dv >= 4) {
+          t.blur();
+        } else if (t.value.length === 2) {
+          t.blur();
+        }
       }
     });
 
