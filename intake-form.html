@@ -136,10 +136,7 @@
     border-radius: 6px; font-size: 14px; font-family: inherit;
     transition: border-color 0.2s, box-shadow 0.2s; background: var(--seed-surface);
   }
-  input[type="date"] { min-width: 160px; -webkit-appearance: none; }
-  input[type="date"]::-webkit-datetime-edit-year-field { min-width: 4em; }
-  input[type="date"]::-webkit-datetime-edit-month-field { min-width: 2.5em; }
-  input[type="date"]::-webkit-datetime-edit-day-field { min-width: 2.5em; }
+  input[type="date"] { min-width: 160px; }
   input:focus, select:focus, textarea:focus {
     outline: none; border-color: var(--seed-primary);
     box-shadow: 0 0 0 3px rgba(74,140,111,0.12);
@@ -607,7 +604,7 @@
       <div class="section-title"><span class="num">1+</span>车辆所有人信息</div>
       <div class="vo-hint">因当事人非车主，需补充车辆所有人信息以便追加被告或联系车主方保险。</div>
       <div class="form-row">
-        <div class="form-group"><label><span class="star">*</span>车辆所有人姓名</label><input type="text" name="vo_name" placeholder="行驶证登记车主姓名"></div>
+        <div class="form-group"><label>车辆所有人姓名</label><input type="text" name="vo_name" placeholder="行驶证登记车主姓名"></div>
         <div class="form-group"><label>与当事人关系</label>
           <select name="vo_relationship">
             <option value="">请选择</option>
@@ -665,7 +662,7 @@
         </div>
         <div class="form-group"><label>是否已报警</label>
           <div class="check-group">
-            <label class="check-item"><input type="radio" name="reported" value="是" required><span class="check-label">是</span></label>
+            <label class="check-item"><input type="radio" name="reported" value="是"><span class="check-label">是</span></label>
             <label class="check-item"><input type="radio" name="reported" value="否"><span class="check-label">否</span></label>
           </div>
         </div>
@@ -788,7 +785,7 @@
 
     <!-- 六、刑事风险提示 -->
     <div class="section">
-      <div class="section-title"><span class="num">6</span>刑事风险提示<span class="required-badge">必填</span></div>
+      <div class="section-title"><span class="num">6</span>刑事风险提示</div>
       <div class="risk-warning">
         <div class="risk-title">请确认是否存在以下情形（可多选）</div>
         <div class="check-group">
@@ -805,9 +802,9 @@
 
     <!-- 七、核心诉求 -->
     <div class="section">
-      <div class="section-title"><span class="num">7</span>核心诉求<span class="required-badge">必填</span></div>
+      <div class="section-title"><span class="num">7</span>核心诉求</div>
       <div class="form-row single">
-        <div class="form-group"><label><span class="star">*</span>最想解决的1-2件事</label>
+        <div class="form-group"><label>最想解决的1-2件事</label>
           <div class="check-group">
             <label class="check-item"><input type="checkbox" name="demands" value="尽快拿到赔偿款"><span class="check-label">尽快拿到赔偿款</span></label>
             <label class="check-item"><input type="checkbox" name="demands" value="争取伤残赔偿"><span class="check-label">争取伤残赔偿</span></label>
@@ -873,11 +870,11 @@
 
     <!-- 填写人信息 -->
     <div class="section">
-      <div class="section-title"><span class="num">+</span>填写人信息<span class="required-badge">必填</span></div>
+      <div class="section-title"><span class="num">+</span>填写人信息</div>
       <p style="font-size:13px;color:var(--seed-muted);margin-bottom:12px;">如非本人填写，请填写实际填写人信息：</p>
       <div class="form-row">
-        <div class="form-group"><label><span class="star">*</span>填写人姓名</label><input type="text" name="filler_name" required placeholder="填写人姓名"></div>
-        <div class="form-group"><label><span class="star">*</span>填写人联系电话</label><input type="tel" name="filler_phone" required placeholder="手机号码"></div>
+        <div class="form-group"><label>填写人姓名</label><input type="text" name="filler_name" placeholder="填写人姓名"></div>
+        <div class="form-group"><label>填写人联系电话</label><input type="tel" name="filler_phone" placeholder="手机号码"></div>
       </div>
       <div class="form-row single"><div class="form-group"><label>与当事人关系</label><input type="text" name="filler_relation" placeholder="例：本人 / 配偶 / 子女 / 朋友"></div></div>
     </div>
@@ -1239,10 +1236,10 @@
         '</div>' +
         '<div class="form-group"><label><span class="star">*</span>受伤人员分类</label>' +
           '<div class="check-group">' +
-            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="本人" ' + (index === 1 ? 'required checked' : '') + '><span class="check-label">本人</span></label>' +
-            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="乘客"><span class="check-label">乘客</span></label>' +
-            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="对方人员"><span class="check-label">对方人员</span></label>' +
-            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="行人"><span class="check-label">行人</span></label>' +
+            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="本人" ' + (index === 1 ? 'required checked' : 'required') + ' onchange="onPartyTypeChange(' + index + ')"><span class="check-label">本人</span></label>' +
+            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="乘客" onchange="onPartyTypeChange(' + index + ')"><span class="check-label">乘客</span></label>' +
+            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="对方人员" onchange="onPartyTypeChange(' + index + ')"><span class="check-label">对方人员</span></label>' +
+            '<label class="check-item"><input type="radio" name="injured_party_' + index + '" value="行人" onchange="onPartyTypeChange(' + index + ')"><span class="check-label">行人</span></label>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -1423,6 +1420,48 @@
     updateProgress();
   }
 
+  function onPartyTypeChange(index) {
+    var block = document.getElementById('injuryPerson_' + index);
+    if (!block) return;
+    var checked = block.querySelector('[name="injured_party_' + index + '"]:checked');
+    var isSelf = checked && checked.value === '本人';
+    var nameInput = block.querySelector('[name="injured_name_' + index + '"]');
+    var birthInput = block.querySelector('[name="birthdate_' + index + '"]');
+    var ageInput = block.querySelector('[name="age_' + index + '"]');
+    if (isSelf) {
+      // Auto-fill from section 1 basic info
+      var partyName = document.querySelector('[name="name"]');
+      var partyBirth = document.querySelector('[name="birthdate"]');
+      if (nameInput && partyName) {
+        nameInput.value = partyName.value || '';
+        nameInput.readOnly = true;
+        nameInput.style.background = '#f4f7f4';
+      }
+      if (birthInput && partyBirth && partyBirth.value) {
+        birthInput.value = partyBirth.value;
+        birthInput.readOnly = true;
+        birthInput.style.background = '#f4f7f4';
+        // Calculate age from birthdate
+        if (ageInput) {
+          var bd = new Date(partyBirth.value);
+          var today = new Date();
+          var age = today.getFullYear() - bd.getFullYear();
+          var m = today.getMonth() - bd.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--;
+          ageInput.value = age >= 0 ? age : '';
+          ageInput.readOnly = true;
+          ageInput.style.background = '#f4f7f4';
+        }
+      }
+    } else {
+      // Clear and make editable
+      if (nameInput) { nameInput.value = ''; nameInput.readOnly = false; nameInput.style.background = ''; }
+      if (birthInput) { birthInput.value = ''; birthInput.readOnly = false; birthInput.style.background = ''; }
+      if (ageInput) { ageInput.value = ''; ageInput.readOnly = false; ageInput.style.background = ''; }
+    }
+    updateProgress();
+  }
+
   function calcBirthFromAge(index) {
     var ageInput = document.querySelector('[name="age_' + index + '"]');
     var birthInput = document.querySelector('[name="birthdate_' + index + '"]');
@@ -1577,6 +1616,20 @@
       }
     }
 
+    // Date year correction: fix years < 100 (e.g., 23 → 2023)
+    document.querySelectorAll('input[type="date"]').forEach(function(dateInput) {
+      if (dateInput.value) {
+        var parts = dateInput.value.split('-');
+        if (parts.length === 3) {
+          var year = parseInt(parts[0]);
+          if (year > 0 && year < 100) {
+            parts[0] = String(year + 2000);
+            dateInput.value = parts.join('-');
+          }
+        }
+      }
+    });
+
     // Date cross-validation
     var dateErrors = validateDates();
     if (dateErrors.length > 0) {
@@ -1729,8 +1782,9 @@
       injuryPersonCount = 1;
       document.getElementById('injuredCount').value = 1;
       container.appendChild(createInjuryPersonBlock(1));
-      // Re-set default dates
+      // Re-set default dates and auto-fill
       setDefaultDates();
+      onPartyTypeChange(1);
       updateProgress();
     }
   }
@@ -1769,6 +1823,36 @@
   setDefaultDates();
   injuryPersonCount = 1;
   document.getElementById('injuryPersonsContainer').appendChild(createInjuryPersonBlock(1));
+  // Auto-fill first block if "本人" is selected (default)
+  onPartyTypeChange(1);
+  // Sync section 1 name/birthdate changes to injury block when "本人"
+  var partyNameInput = document.querySelector('[name="name"]');
+  var partyBirthInput = document.querySelector('[name="birthdate"]');
+  if (partyNameInput) {
+    partyNameInput.addEventListener('input', function() {
+      var blocks = document.querySelectorAll('.injury-person-block');
+      blocks.forEach(function(block) {
+        var checked = block.querySelector('[name^="injured_party_"]:checked');
+        if (checked && checked.value === '本人') {
+          var idx = block.id.replace('injuryPerson_', '');
+          var nameEl = block.querySelector('[name="injured_name_' + idx + '"]');
+          if (nameEl && nameEl.readOnly) nameEl.value = partyNameInput.value || '';
+        }
+      });
+    });
+  }
+  if (partyBirthInput) {
+    partyBirthInput.addEventListener('change', function() {
+      var blocks = document.querySelectorAll('.injury-person-block');
+      blocks.forEach(function(block) {
+        var checked = block.querySelector('[name^="injured_party_"]:checked');
+        if (checked && checked.value === '本人') {
+          var idx = block.id.replace('injuryPerson_', '');
+          onPartyTypeChange(parseInt(idx));
+        }
+      });
+    });
+  }
   updateProgress();
 </script>
 <!--CONFIG_MARKER-->
