@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="canvas:aspect-ratio" content="4:5">
+<title>交通事故接案问询单</title>
+<style>
+  :root {
+    --seed-bg: #f4f7f4;
+    --seed-fg: #1e2d1e;
+    --seed-primary: #4a8c6f;
+    --seed-primary-dark: #3d7560;
+    --seed-primary-light: #dceee5;
+    --seed-accent: #c0534d;
+    --seed-surface: #ffffff;
+    --seed-border: #d4ddd7;
+    --seed-muted: #5f7a6a;
+    --seed-radius: 8px;
+    --seed-success: #3a8c5c;
+    --seed-warning: #c09840;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--seed-bg);
+    color: var(--seed-fg);
+    line-height: 1.6;
+  }
+  .container { max-width: 780px; margin: 0 auto; padding: 24px 16px; }
+
+  /* ===== Admin Config Panel ===== */
+  .admin-panel {
+    background: #f0f4f1;
+    border: 1px dashed var(--seed-primary);
+    border-radius: var(--seed-radius);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    display: none;
+  }
+  .admin-panel.active { display: block; }
+  .admin-panel-title {
+    font-size: 15px; font-weight: 600; color: var(--seed-primary);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 6px;
+  }
+  .admin-panel .form-row { margin-bottom: 10px; }
+  .admin-panel textarea { min-height: 50px; font-size: 13px; }
+  .admin-btn-group { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .admin-btn {
+    padding: 8px 18px; border: none; border-radius: 6px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    font-family: inherit; transition: all 0.2s;
+  }
+  .admin-btn-apply { background: var(--seed-primary); color: #fff; }
+  .admin-btn-apply:hover { background: var(--seed-primary-dark); }
+  .admin-btn-generate { background: #e8f0ec; color: var(--seed-primary); border: 1px solid var(--seed-primary); }
+  .admin-btn-generate:hover { background: var(--seed-primary-light); }
+  .admin-btn-close { background: transparent; color: var(--seed-muted); border: 1px solid var(--seed-border); }
+  .admin-btn-close:hover { background: #eee; }
+  .admin-link-box {
+    margin-top: 12px; padding: 10px 14px; background: #fff;
+    border: 1px solid var(--seed-border); border-radius: 6px;
+    font-size: 12px; display: none;
+  }
+  .admin-link-box textarea {
+    width: 100%; border: none; font-size: 12px;
+    color: var(--seed-muted); resize: none; height: 40px; font-family: monospace;
+  }
+  .admin-link-box textarea:focus { outline: none; }
+
+  /* ===== Progress Bar ===== */
+  .progress-bar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--seed-surface); border-bottom: 1px solid var(--seed-border);
+    padding: 8px 16px; display: flex; align-items: center; gap: 12px;
+  }
+  .progress-track { flex: 1; height: 6px; background: var(--seed-border); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--seed-primary); border-radius: 3px; transition: width 0.3s; width: 0%; }
+  .progress-text { font-size: 12px; color: var(--seed-muted); white-space: nowrap; }
+
+  /* ===== Header ===== */
+  .header {
+    background: linear-gradient(135deg, var(--seed-primary), var(--seed-primary-dark));
+    color: white; padding: 32px 28px; border-radius: var(--seed-radius);
+    margin-bottom: 24px; position: relative; overflow: hidden;
+  }
+  .header::after {
+    content: ''; position: absolute; top: -50%; right: -20%;
+    width: 200px; height: 200px; background: rgba(255,255,255,0.08); border-radius: 50%;
+  }
+  .header h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .header .subtitle { font-size: 14px; opacity: 0.85; }
+  .header .firm-info { font-size: 13px; opacity: 0.7; margin-top: 6px; }
+
+  /* ===== Notice ===== */
+  .notice {
+    background: #f5f0e0; border-left: 4px solid var(--seed-warning);
+    padding: 16px 20px; border-radius: 0 var(--seed-radius) var(--seed-radius) 0;
+    margin-bottom: 24px; font-size: 14px;
+  }
+  .notice strong { color: #7a6520; }
+  .notice ol { margin: 8px 0 0 20px; color: #6b5a20; }
+  .notice li { margin: 4px 0; }
+
+  /* ===== Section ===== */
+  .section {
+    background: var(--seed-surface); border: 1px solid var(--seed-border);
+    border-radius: var(--seed-radius); padding: 24px; margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 17px; font-weight: 600; color: var(--seed-primary);
+    margin-bottom: 16px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--seed-primary-light);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title .num {
+    background: var(--seed-primary); color: white;
+    width: 24px; height: 24px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0;
+  }
+  .required-badge {
+    background: #f5e0df; color: var(--seed-accent); font-size: 11px;
+    padding: 2px 8px; border-radius: 10px; font-weight: 500; margin-left: auto;
+  }
+
+  /* ===== Form Elements ===== */
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin-bottom: 12px; }
+  .form-row.single { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; }
+  .form-group label { font-size: 13px; font-weight: 500; color: var(--seed-muted); margin-bottom: 4px; }
+  .form-group label .star { color: var(--seed-accent); margin-right: 2px; }
+  input[type="text"], input[type="tel"], input[type="date"], input[type="number"],
+  input[type="time"], select, textarea {
+    width: 100%; padding: 8px 12px; border: 1px solid var(--seed-border);
+    border-radius: 6px; font-size: 14px; font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s; background: var(--seed-surface);
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--seed-primary);
+    box-shadow: 0 0 0 3px rgba(74,140,111,0.12);
+  }
+  textarea { resize: vertical; min-height: 60px; }
+
+  /* ===== Checkbox / Radio ===== */
+  .check-group { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .check-item {
+    display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+    border: 1px solid var(--seed-border); border-radius: 6px;
+    cursor: pointer; transition: all 0.2s; font-size: 13px; user-select: none;
+  }
+  .check-item:hover { border-color: var(--seed-primary); background: var(--seed-primary-light); }
+  .check-item input { display: none; }
+  .check-item input:checked + .check-label { color: var(--seed-primary); font-weight: 600; }
+  .check-item:has(input:checked) { border-color: var(--seed-primary); background: var(--seed-primary-light); }
+  .check-label { pointer-events: none; }
+
+  /* ===== Criminal Risk Warning ===== */
+  .risk-warning {
+    background: #faf0ef; border: 1px solid #e8cdc9;
+    border-radius: var(--seed-radius); padding: 16px 20px; margin: 12px 0;
+  }
+  .risk-warning .risk-title { color: var(--seed-accent); font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+
+  /* ===== Material Checklist ===== */
+  .material-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
+  .material-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    border: 1px solid var(--seed-border); border-radius: 6px;
+    cursor: pointer; font-size: 13px; transition: all 0.2s; user-select: none;
+  }
+  .material-item:hover { border-color: var(--seed-success); background: #edf5ef; }
+  .material-item input { display: none; }
+  .material-item:has(input:checked) { border-color: var(--seed-success); background: #edf5ef; }
+  .material-item .check-icon {
+    width: 18px; height: 18px; border: 2px solid var(--seed-border); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; flex-shrink: 0;
+  }
+  .material-item input:checked ~ .check-icon { background: var(--seed-success); border-color: var(--seed-success); color: white; }
+  .material-item input:checked ~ .check-icon::after { content: '\2713'; font-size: 12px; color: white; }
+  .material-parent { flex-direction: column; align-items: flex-start; padding: 8px 12px; }
+  .material-parent .mp-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+  .material-sub-group { display: none; padding-left: 26px; margin-top: 6px; gap: 6px; flex-wrap: wrap; }
+  .material-parent input:checked ~ .material-sub-group { display: flex; }
+  .material-sub {
+    display: flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border: 1px solid var(--seed-border); border-radius: 5px;
+    cursor: pointer; font-size: 12px; transition: all 0.2s; user-select: none;
+  }
+  .material-sub:hover { border-color: var(--seed-success); background: #edf5ef; }
+  .material-sub input { display: none; }
+  .material-sub:has(input:checked) { border-color: var(--seed-success); background: #edf5ef; }
+  .material-sub .sub-icon {
+    width: 15px; height: 15px; border: 1.5px solid var(--seed-border); border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; flex-shrink: 0; font-size: 10px;
+  }
+  .material-sub input:checked ~ .sub-icon { background: var(--seed-success); border-color: var(--seed-success); color: white; }
+  .material-sub input:checked ~ .sub-icon::after { content: '\2713'; color: white; }
+
+  /* ===== Vehicle Owner Conditional Section ===== */
+  .vehicle-owner-section { display: none; }
+  .vehicle-owner-section.visible { display: block; }
+  .vehicle-owner-section .vo-hint {
+    font-size: 13px; color: var(--seed-muted); margin-bottom: 12px;
+    padding: 8px 12px; background: var(--seed-primary-light); border-radius: 6px;
+  }
+
+  /* ===== Buttons ===== */
+  .btn-group { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+  .btn {
+    padding: 12px 28px; border: none; border-radius: var(--seed-radius);
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; font-family: inherit;
+  }
+  .btn-primary { background: var(--seed-primary); color: white; flex: 1; }
+  .btn-primary:hover { background: var(--seed-primary-dark); }
+  .btn-secondary { background: var(--seed-surface); color: var(--seed-fg); border: 1px solid var(--seed-border); }
+  .btn-secondary:hover { background: var(--seed-bg); }
+  .btn-print { background: #edf5ef; color: var(--seed-success); border: 1px solid #b5d8c2; }
+  .btn-print:hover { background: #dceee5; }
+
+  /* ===== Signature ===== */
+  .signature-area {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+    margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--seed-border);
+  }
+  .sig-field label { font-size: 13px; color: var(--seed-muted); display: block; margin-bottom: 4px; }
+  .sig-field input { border-bottom: 1px solid var(--seed-fg); border-radius: 0; padding: 4px 0; }
+
+  /* ===== Footer ===== */
+  .footer { text-align: center; color: var(--seed-muted); font-size: 12px; padding: 16px 0; }
+
+  /* ===== Success Overlay ===== */
+  .overlay-backdrop {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(30,45,30,0.45); z-index: 1000;
+    justify-content: center; align-items: center; animation: fadeIn 0.3s;
+  }
+  .overlay-backdrop.active { display: flex; }
+  .overlay-card {
+    background: #fff; border-radius: 12px; padding: 32px 28px;
+    max-width: 420px; width: 90%; text-align: center;
+    animation: slideUp 0.35s ease-out; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  }
+  .overlay-icon { font-size: 48px; margin-bottom: 12px; }
+  .overlay-title { font-size: 20px; font-weight: 700; color: var(--seed-fg); margin-bottom: 8px; }
+  .overlay-info { font-size: 14px; color: var(--seed-muted); margin-bottom: 16px; line-height: 1.8; }
+  .overlay-info strong { color: var(--seed-fg); }
+  .overlay-steps {
+    text-align: left; background: #f4f7f4; border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 20px; font-size: 13px;
+    color: var(--seed-fg); line-height: 2;
+  }
+  .overlay-steps .step-num {
+    display: inline-block; width: 20px; height: 20px;
+    background: var(--seed-primary); color: #fff; border-radius: 50%;
+    text-align: center; line-height: 20px; font-size: 11px; margin-right: 8px;
+  }
+  .overlay-btns { display: flex; gap: 10px; justify-content: center; }
+  .overlay-btn {
+    padding: 10px 24px; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .overlay-btn-ok { background: var(--seed-primary); color: #fff; }
+  .overlay-btn-ok:hover { background: var(--seed-primary-dark); }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* ===== Print ===== */
+  @media print {
+    body { background: white; }
+    .progress-bar, .btn-group, .no-print, .admin-panel { display: none !important; }
+    .container { padding: 0; max-width: 100%; }
+    .section { break-inside: avoid; page-break-inside: avoid; }
+    .header { background: var(--seed-primary) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 600px) {
+    .form-row, .material-grid, .signature-area { grid-template-columns: 1fr; }
+    .header { padding: 24px 20px; }
+    .header h1 { font-size: 20px; }
+  }
+  /* ===== Variant Switcher ===== */
+  .variant-switcher {
+    position: fixed; top: 12px; right: 12px; z-index: 2000;
+    display: flex; gap: 6px; background: rgba(255,255,255,0.96);
+    padding: 6px 10px; border-radius: 24px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.1); font-size: 12px; align-items: center;
+  }
+  .variant-switcher .sw-label { color: #999; font-size: 11px; margin-right: 2px; }
+  .variant-switcher button {
+    padding: 5px 14px; border: 1.5px solid #ddd; border-radius: 16px;
+    background: transparent; cursor: pointer; font-size: 12px;
+    font-family: inherit; transition: all 0.25s; color: #666;
+  }
+  .variant-switcher button:hover { border-color: #aaa; color: #333; }
+  .variant-switcher button.active { background: #333; color: #fff; border-color: #333; }
+
+  /* ================================================
+     VARIANT B — 温暖关怀 (Warm & Caring)
+     暖色调 · 圆角 · 宽松 · 柔和关怀
+     ================================================ */
+  body.variant-b {
+    --seed-bg: #faf6f1;
+    --seed-fg: #3d2e1f;
+    --seed-primary: #c08b5c;
+    --seed-primary-dark: #a87748;
+    --seed-primary-light: #f0e4d4;
+    --seed-accent: #c46b5c;
+    --seed-surface: #fffcf8;
+    --seed-border: #e8ddd0;
+    --seed-muted: #8a7560;
+    --seed-radius: 14px;
+    --seed-success: #7a9e6d;
+    --seed-warning: #d4a84a;
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    line-height: 1.75;
+  }
+  body.variant-b .container { padding: 32px 20px; }
+  body.variant-b .section { padding: 30px; margin-bottom: 20px; border-radius: 14px; box-shadow: 0 1px 8px rgba(160,130,100,0.06); }
+  body.variant-b .header { padding: 40px 32px; border-radius: 14px; background: linear-gradient(135deg, #c08b5c, #d4a87a); }
+  body.variant-b .header h1 { font-size: 26px; letter-spacing: 1px; }
+  body.variant-b .section-title { font-size: 18px; margin-bottom: 20px; padding-bottom: 10px; }
+  body.variant-b .check-item { padding: 8px 16px; border-radius: 10px; }
+  body.variant-b .material-item { padding: 10px 14px; border-radius: 10px; }
+  body.variant-b .btn { border-radius: 12px; padding: 14px 28px; }
+  body.variant-b .notice { border-radius: 0 14px 14px 0; background: #fdf5e6; border-left-color: #d4a84a; }
+  body.variant-b .risk-warning { border-radius: 14px; background: #fdf0ec; border-color: #e8cdc4; }
+  body.variant-b input[type="text"], body.variant-b input[type="tel"],
+  body.variant-b input[type="date"], body.variant-b input[type="number"],
+  body.variant-b input[type="time"], body.variant-b select, body.variant-b textarea { border-radius: 10px; padding: 10px 14px; }
+  body.variant-b input:focus, body.variant-b select:focus, body.variant-b textarea:focus { box-shadow: 0 0 0 3px rgba(192,139,92,0.12); border-color: #c08b5c; }
+  body.variant-b .progress-bar { border-radius: 0; }
+  body.variant-b .progress-fill { background: #c08b5c; }
+  body.variant-b .section-title .num { border-radius: 50%; background: #c08b5c; }
+  body.variant-b .btn-primary { background: #c08b5c; }
+  body.variant-b .btn-primary:hover { background: #a87748; }
+  body.variant-b .overlay-backdrop { background: rgba(61,46,31,0.4); }
+  body.variant-b .overlay-btn-ok { background: #c08b5c; }
+  body.variant-b .overlay-btn-ok:hover { background: #a87748; }
+  body.variant-b .admin-panel { background: #f5efe6; border-color: #c08b5c; }
+  body.variant-b .admin-btn-apply { background: #c08b5c; }
+  body.variant-b .admin-btn-apply:hover { background: #a87748; }
+  body.variant-b .admin-btn-generate { color: #c08b5c; border-color: #c08b5c; background: #f0e4d4; }
+
+  /* ================================================
+     VARIANT C — 专业严谨 (Professional & Rigorous)
+     冷色调 · 直角 · 紧凑 · 权威可信
+     ================================================ */
+  body.variant-c {
+    --seed-bg: #f0f2f5;
+    --seed-fg: #1a1f36;
+    --seed-primary: #2d3a8c;
+    --seed-primary-dark: #1f2b6e;
+    --seed-primary-light: #dce0f0;
+    --seed-accent: #b83a3a;
+    --seed-surface: #ffffff;
+    --seed-border: #c8cdd8;
+    --seed-muted: #5a6178;
+    --seed-radius: 4px;
+    --seed-success: #2d7a4c;
+    --seed-warning: #b8860b;
+    font-family: "Heiti SC", "Microsoft YaHei", "SimHei", -apple-system, sans-serif;
+    line-height: 1.5;
+  }
+  body.variant-c .container { padding: 16px 12px; }
+  body.variant-c .section { padding: 18px; margin-bottom: 10px; border-radius: 4px; }
+  body.variant-c .header { padding: 24px 24px; border-radius: 4px; background: linear-gradient(135deg, #2d3a8c, #1f2b6e); }
+  body.variant-c .header h1 { font-size: 22px; letter-spacing: 2px; font-weight: 800; }
+  body.variant-c .header .subtitle { font-size: 13px; }
+  body.variant-c .section-title { font-size: 15px; margin-bottom: 12px; padding-bottom: 6px; font-weight: 700; }
+  body.variant-c .check-item { padding: 5px 10px; font-size: 12px; border-radius: 3px; }
+  body.variant-c .check-group { gap: 5px; margin: 5px 0; }
+  body.variant-c .material-item { padding: 6px 10px; font-size: 12px; border-radius: 3px; }
+  body.variant-c .material-grid { gap: 4px; }
+  body.variant-c .btn { border-radius: 4px; padding: 10px 20px; font-size: 14px; }
+  body.variant-c .btn-group { gap: 8px; margin-top: 16px; }
+  body.variant-c .notice { border-radius: 0 4px 4px 0; font-size: 13px; padding: 12px 16px; background: #f5f0d8; border-left-color: #b8860b; }
+  body.variant-c .risk-warning { border-radius: 4px; background: #faf0f0; border-color: #dcc8c8; }
+  body.variant-c input[type="text"], body.variant-c input[type="tel"],
+  body.variant-c input[type="date"], body.variant-c input[type="number"],
+  body.variant-c input[type="time"], body.variant-c select, body.variant-c textarea { border-radius: 4px; padding: 6px 10px; font-size: 13px; }
+  body.variant-c input:focus, body.variant-c select:focus, body.variant-c textarea:focus { box-shadow: 0 0 0 2px rgba(45,58,140,0.12); border-color: #2d3a8c; }
+  body.variant-c .form-row { gap: 8px 12px; margin-bottom: 8px; }
+  body.variant-c .progress-fill { background: #2d3a8c; }
+  body.variant-c .section-title .num { background: #2d3a8c; border-radius: 4px; width: 22px; height: 22px; font-size: 12px; }
+  body.variant-c .btn-primary { background: #2d3a8c; }
+  body.variant-c .btn-primary:hover { background: #1f2b6e; }
+  body.variant-c .overlay-backdrop { background: rgba(26,31,54,0.5); }
+  body.variant-c .overlay-btn-ok { background: #2d3a8c; }
+  body.variant-c .overlay-btn-ok:hover { background: #1f2b6e; }
+  body.variant-c .overlay-card { border-radius: 4px; }
+  body.variant-c .admin-panel { background: #ecedf2; border-color: #2d3a8c; }
+  body.variant-c .admin-btn-apply { background: #2d3a8c; }
+  body.variant-c .admin-btn-apply:hover { background: #1f2b6e; }
+  body.variant-c .admin-btn-generate { color: #2d3a8c; border-color: #2d3a8c; background: #dce0f0; }
+</style>
+</head>
+<body>
+
+<!-- ===== Variant Switcher ===== -->
+<div class="variant-switcher no-print">
+  <span class="sw-label">视觉方案</span>
+  <button class="active" onclick="switchVariant('a', this)">A 清新专业</button>
+  <button onclick="switchVariant('b', this)">B 温暖关怀</button>
+  <button onclick="switchVariant('c', this)">C 严谨紧凑</button>
+</div>
+
+<!-- ===== Admin Configuration Panel ===== -->
+<div class="admin-panel no-print" id="adminPanel">
+  <div class="admin-panel-title">
+    <span style="font-size:18px;">&#9881;</span> 发送配置（市场行政人员专用）
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>律所名称</label>
+      <input type="text" id="cfgFirm" placeholder="例：辽宁XX律师事务所">
+    </div>
+    <div class="form-group">
+      <label>接洽联络人</label>
+      <input type="text" id="cfgLawyer" placeholder="例：李助理 / 王律师">
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>联系电话/微信</label>
+      <input type="text" id="cfgContact" placeholder="例：13800138000">
+    </div>
+    <div class="form-group">
+      <label>问询单标题</label>
+      <input type="text" id="cfgTitle" placeholder="默认：交通事故接案问询单" value="交通事故接案问询单">
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>团队名称</label>
+      <input type="text" id="cfgTeam" placeholder="例：滕丹丹侵权事务团队">
+    </div>
+    <div class="form-group">
+      <label>团队 Slogan</label>
+      <input type="text" id="cfgSlogan" placeholder="例：为您解忧护航">
+    </div>
+  </div>
+  <div class="form-row single">
+    <div class="form-group">
+      <label>回发指引（客户提交后看到的提示文字，多条用分号分隔）</label>
+      <textarea id="cfgReturn" placeholder="例：请将下载的文件通过微信发送给接洽联络人；微信号：13800138000">请将下载的文件通过微信发送给接洽联络人。</textarea>
+    </div>
+  </div>
+  <div class="admin-btn-group">
+    <button class="admin-btn admin-btn-apply" onclick="applyConfig()">应用配置（预览）</button>
+    <button class="admin-btn admin-btn-generate" onclick="generateHTMLFile()">生成定制HTML文件</button>
+    <button class="admin-btn admin-btn-generate" onclick="generateLink()">生成分发链接</button>
+    <button class="admin-btn admin-btn-close" onclick="toggleAdmin()">关闭面板</button>
+  </div>
+  <div class="admin-link-box" id="adminLinkBox">
+    <div style="font-size:12px;color:var(--seed-muted);margin-bottom:6px;">分发链接需将HTML文件部署到服务器后使用。如直接微信发文件，请用上方「生成定制HTML文件」按钮。</div>
+    <textarea id="adminLinkText" readonly onclick="this.select()"></textarea>
+  </div>
+</div>
+
+<!-- ===== Progress Bar ===== -->
+<div class="progress-bar no-print">
+  <span class="progress-text">填写进度</span>
+  <div class="progress-track">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+  <span class="progress-text" id="progressPercent">0%</span>
+</div>
+
+<div class="container">
+  <div class="header" id="formHeader">
+    <h1 id="formTitle">交通事故接案问询单</h1>
+    <div class="subtitle">请如实填写以下信息，带 <strong>*</strong> 的为必填项。信息越完整，律师给出的方案越精准。</div>
+    <div class="firm-info" id="firmInfo" style="display:none"></div>
+  </div>
+
+  <div class="notice" id="returnNotice">
+    <strong>温馨提示：</strong>
+    <ol>
+      <li>信息越完整，律师给出的方案越精准；如暂无法提供，可在面谈时补交。</li>
+      <li>所有信息仅用于律师内部评估，严格保密。</li>
+      <li>带 * 号的为必填项。</li>
+    </ol>
+  </div>
+
+  <form id="questionnaireForm">
+
+    <!-- 一、当事人基本信息 -->
+    <div class="section">
+      <div class="section-title"><span class="num">1</span>当事人基本信息<span class="required-badge">必填</span></div>
+      <div class="form-row">
+        <div class="form-group"><label><span class="star">*</span>姓名</label><input type="text" name="name" required placeholder="请输入姓名"></div>
+        <div class="form-group"><label>性别</label><select name="gender"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>出生日期</label><input type="date" name="birthdate"></div>
+        <div class="form-group"><label>身份证号</label><input type="text" name="idcard" placeholder="18位身份证号" maxlength="18"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label><span class="star">*</span>联系电话</label><input type="tel" name="phone" required placeholder="手机号码"></div>
+        <div class="form-group"><label>紧急联系人电话</label><input type="tel" name="emergency_phone" placeholder="紧急联系人"></div>
+      </div>
+      <div class="form-row single"><div class="form-group"><label>住址</label><input type="text" name="address" placeholder="现住址"></div></div>
+      <div class="form-row">
+        <div class="form-group"><label>职业</label><input type="text" name="occupation" placeholder="职业/工种"></div>
+        <div class="form-group"><label>工作单位</label><input type="text" name="employer" placeholder="工作单位名称"></div>
+      </div>
+      <div class="form-row single">
+        <div class="form-group"><label><span class="star">*</span>当事人身份</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="party_identity" value="司机" required><span class="check-label">司机</span></label>
+            <label class="check-item"><input type="radio" name="party_identity" value="车主"><span class="check-label">车主</span></label>
+            <label class="check-item"><input type="radio" name="party_identity" value="乘客"><span class="check-label">乘客</span></label>
+            <label class="check-item"><input type="radio" name="party_identity" value="行人"><span class="check-label">行人</span></label>
+            <label class="check-item"><input type="radio" name="party_identity" value="其它"><span class="check-label">其它</span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 车辆所有人信息（当事人非车主时显示） -->
+    <div class="section vehicle-owner-section" id="vehicleOwnerSection">
+      <div class="section-title"><span class="num">1+</span>车辆所有人信息</div>
+      <div class="vo-hint">因当事人非车主，需补充车辆所有人信息以便追加被告或联系车主方保险。</div>
+      <div class="form-row">
+        <div class="form-group"><label><span class="star">*</span>车辆所有人姓名</label><input type="text" name="vo_name" placeholder="行驶证登记车主姓名"></div>
+        <div class="form-group"><label>与当事人关系</label>
+          <select name="vo_relationship">
+            <option value="">请选择</option>
+            <option value="配偶">配偶</option>
+            <option value="父母">父母</option>
+            <option value="子女">子女</option>
+            <option value="亲属">亲属</option>
+            <option value="朋友">朋友</option>
+            <option value="雇主">雇主</option>
+            <option value="租赁公司">租赁公司</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>联系电话</label><input type="tel" name="vo_phone" placeholder="车主联系电话"></div>
+        <div class="form-group"><label>身份证号（如已知）</label><input type="text" name="vo_idcard" placeholder="18位身份证号" maxlength="18"></div>
+      </div>
+    </div>
+
+    <!-- 二、事故核心信息 -->
+    <div class="section">
+      <div class="section-title"><span class="num">2</span>事故核心信息<span class="required-badge">必填</span></div>
+      <div class="form-row">
+        <div class="form-group"><label><span class="star">*</span>事故发生日期</label><input type="date" name="accident_date" required></div>
+        <div class="form-group"><label><span class="star">*</span>事故发生时间</label><input type="time" name="accident_time" required></div>
+      </div>
+      <div class="form-row single"><div class="form-group"><label><span class="star">*</span>事故地点</label><input type="text" name="accident_location" required placeholder="例：辽宁省沈阳市和平区XX路XX号路口"></div></div>
+      <div class="form-row single">
+        <div class="form-group"><label>天气/路况</label>
+          <div class="check-group">
+            <label class="check-item"><input type="checkbox" name="weather" value="晴天"><span class="check-label">晴天</span></label>
+            <label class="check-item"><input type="checkbox" name="weather" value="雨天"><span class="check-label">雨天</span></label>
+            <label class="check-item"><input type="checkbox" name="weather" value="雪天"><span class="check-label">雪天</span></label>
+            <label class="check-item"><input type="checkbox" name="weather" value="雾天"><span class="check-label">雾天</span></label>
+            <label class="check-item"><input type="checkbox" name="weather" value="夜间"><span class="check-label">夜间</span></label>
+            <label class="check-item"><input type="checkbox" name="weather" value="其他"><span class="check-label">其他</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="form-group"><label><span class="star">*</span>交警责任认定</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="liability" value="对方全责" required><span class="check-label">对方全责</span></label>
+            <label class="check-item"><input type="radio" name="liability" value="己方全责"><span class="check-label">己方全责</span></label>
+            <label class="check-item"><input type="radio" name="liability" value="同等责任"><span class="check-label">同等责任</span></label>
+            <label class="check-item"><input type="radio" name="liability" value="主次责任"><span class="check-label">主次责任</span></label>
+            <label class="check-item"><input type="radio" name="liability" value="尚未认定"><span class="check-label">尚未认定</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>如为主次责任，己方责任比例</label>
+          <select name="liability_ratio"><option value="">请选择</option><option value="10%">10%</option><option value="20%">20%</option><option value="30%">30%</option><option value="40%">40%</option><option value="50%">50%</option><option value="60%">60%</option><option value="70%">70%</option></select>
+        </div>
+        <div class="form-group"><label>是否已报警</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="reported" value="是" required><span class="check-label">是</span></label>
+            <label class="check-item"><input type="radio" name="reported" value="否"><span class="check-label">否</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row single"><div class="form-group"><label>事故认定书编号</label><input type="text" name="report_no" placeholder="如有请填写"></div></div>
+      <div class="form-row single">
+        <div class="form-group"><label>事故形态</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="accident_type" value="追尾"><span class="check-label">追尾</span></label>
+            <label class="check-item"><input type="radio" name="accident_type" value="侧面碰撞"><span class="check-label">侧面碰撞</span></label>
+            <label class="check-item"><input type="radio" name="accident_type" value="正面碰撞"><span class="check-label">正面碰撞</span></label>
+            <label class="check-item"><input type="radio" name="accident_type" value="行人/非机动车事故"><span class="check-label">行人/非机动车</span></label>
+            <label class="check-item"><input type="radio" name="accident_type" value="开门杀"><span class="check-label">开门杀</span></label>
+            <label class="check-item"><input type="radio" name="accident_type" value="翻车"><span class="check-label">翻车</span></label>
+            <label class="check-item"><input type="radio" name="accident_type" value="刮擦"><span class="check-label">刮擦</span></label>
+            <label class="check-item"><input type="radio" name="accident_type" value="其他"><span class="check-label">其他</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="form-group"><label>是否涉及营运车辆</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="commercial" value="网约车"><span class="check-label">网约车</span></label>
+            <label class="check-item"><input type="radio" name="commercial" value="出租车"><span class="check-label">出租车</span></label>
+            <label class="check-item"><input type="radio" name="commercial" value="货车"><span class="check-label">货车</span></label>
+            <label class="check-item"><input type="radio" name="commercial" value="否"><span class="check-label">否</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="form-group"><label>是否涉及工伤（上下班途中/因公出行）</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="work_related" value="是"><span class="check-label">是</span></label>
+            <label class="check-item"><input type="radio" name="work_related" value="否"><span class="check-label">否</span></label>
+            <label class="check-item"><input type="radio" name="work_related" value="不确定"><span class="check-label">不确定</span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 三、人员受伤及就诊情况 -->
+    <div class="section">
+      <div class="section-title"><span class="num">3</span>人员受伤及就诊情况<span class="required-badge">必填</span></div>
+      <div class="form-row single">
+        <div class="form-group"><label><span class="star">*</span>受伤人员（可多选）</label>
+          <div class="check-group">
+            <label class="check-item"><input type="checkbox" name="injured_party" value="本人" required><span class="check-label">本人</span></label>
+            <label class="check-item"><input type="checkbox" name="injured_party" value="乘客"><span class="check-label">乘客</span></label>
+            <label class="check-item"><input type="checkbox" name="injured_party" value="对方人员"><span class="check-label">对方人员</span></label>
+            <label class="check-item"><input type="checkbox" name="injured_party" value="行人"><span class="check-label">行人</span></label>
+            <label class="check-item"><input type="checkbox" name="injured_party" value="无人伤"><span class="check-label">无人伤</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row single"><div class="form-group"><label>受伤部位</label><input type="text" name="injury_part" placeholder="如：左腿骨折、头部外伤等"></div></div>
+      <div class="form-row">
+        <div class="form-group"><label><span class="star">*</span>首次就诊医院</label><input type="text" name="hospital" placeholder="医院名称"></div>
+        <div class="form-group"><label><span class="star">*</span>初诊日期</label><input type="date" name="first_visit_date"></div>
+      </div>
+      <div class="form-row single"><div class="form-group"><label><span class="star">*</span>主要诊断</label><input type="text" name="diagnosis" placeholder="医院诊断结果简述"></div></div>
+      <div class="form-row single">
+        <div class="form-group"><label>是否住院</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="hospitalized" value="否"><span class="check-label">否</span></label>
+            <label class="check-item"><input type="radio" name="hospitalized" value="是"><span class="check-label">是</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row" id="hospitalizationDetail" style="display:none">
+        <div class="form-group"><label>住院起止日期</label><input type="date" name="hosp_start"></div>
+        <div class="form-group"><label>至</label><input type="date" name="hosp_end"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>是否手术</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="surgery" value="否"><span class="check-label">否</span></label>
+            <label class="check-item"><input type="radio" name="surgery" value="是"><span class="check-label">是</span></label>
+          </div>
+        </div>
+        <div class="form-group"><label>目前恢复情况</label>
+          <select name="recovery"><option value="">请选择</option><option value="已痊愈">已痊愈</option><option value="恢复中">恢复中</option><option value="需继续治疗">需继续治疗</option><option value="构成伤残">构成伤残</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>是否已做伤残鉴定</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="disability_assessed" value="未做"><span class="check-label">未做</span></label>
+            <label class="check-item"><input type="radio" name="disability_assessed" value="已做"><span class="check-label">已做</span></label>
+          </div>
+        </div>
+        <div class="form-group"><label>伤残等级（如已做）</label>
+          <select name="disability_level"><option value="">请选择</option><option value="一级">一级</option><option value="二级">二级</option><option value="三级">三级</option><option value="四级">四级</option><option value="五级">五级</option><option value="六级">六级</option><option value="七级">七级</option><option value="八级">八级</option><option value="九级">九级</option><option value="十级">十级</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>护理依赖程度</label>
+          <select name="nursing_dependency">
+            <option value="">请选择</option>
+            <option value="不需要护理">不需要护理</option>
+            <option value="部分护理依赖">部分护理依赖</option>
+            <option value="大部分护理依赖">大部分护理依赖</option>
+            <option value="完全护理依赖">完全护理依赖</option>
+          </select>
+        </div>
+        <div class="form-group"><label>护理人数</label>
+          <select name="nursing_count">
+            <option value="">请选择</option>
+            <option value="1人">1人</option>
+            <option value="2人">2人</option>
+            <option value="3人及以上">3人及以上</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row single"><div class="form-group"><label>护理期限及说明</label><input type="text" name="nursing_note" placeholder="如：医嘱建议护理6个月 / 住院期间2人护理 / 需长期护理等"></div></div>
+    </div>
+
+    <!-- 四、保险信息 -->
+    <div class="section">
+      <div class="section-title"><span class="num">4</span>保险信息</div>
+      <div class="form-row single">
+        <div class="form-group"><label>已知险种（可多选）</label>
+          <div class="check-group">
+            <label class="check-item"><input type="checkbox" name="insurance" value="交强险"><span class="check-label">交强险</span></label>
+            <label class="check-item"><input type="checkbox" name="insurance" value="商业三者险"><span class="check-label">商业三者险</span></label>
+            <label class="check-item"><input type="checkbox" name="insurance" value="车损险"><span class="check-label">车损险</span></label>
+            <label class="check-item"><input type="checkbox" name="insurance" value="车上人员责任险"><span class="check-label">车上人员责任险</span></label>
+            <label class="check-item"><input type="checkbox" name="insurance" value="驾乘意外险"><span class="check-label">驾乘意外险</span></label>
+            <label class="check-item"><input type="checkbox" name="insurance" value="工伤险"><span class="check-label">工伤险</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>保险公司</label><input type="text" name="insurer" placeholder="保险公司名称"></div>
+        <div class="form-group"><label>保单号/保额</label><input type="text" name="policy_info" placeholder="保单号及保额"></div>
+      </div>
+      <div class="form-row single"><div class="form-group"><label>对方保险信息（如已知）</label><input type="text" name="opposite_insurance" placeholder="对方保险公司、保单号等"></div></div>
+    </div>
+
+    <!-- 五、财产损失 -->
+    <div class="section">
+      <div class="section-title"><span class="num">5</span>财产损失</div>
+      <div class="form-row">
+        <div class="form-group"><label>车辆类型</label>
+          <select name="vehicle_type"><option value="">请选择</option><option value="轿车">轿车</option><option value="SUV">SUV</option><option value="货车">货车</option><option value="摩托车">摩托车</option><option value="电动车">电动车</option><option value="自行车">自行车</option><option value="无">无</option><option value="其他">其他</option></select>
+        </div>
+        <div class="form-group"><label>车辆是否可行驶</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="drivable" value="是"><span class="check-label">是</span></label>
+            <label class="check-item"><input type="radio" name="drivable" value="否"><span class="check-label">否（全损）</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>车辆大致损失金额（元）</label><input type="number" name="vehicle_damage" placeholder="预估金额"></div>
+        <div class="form-group"><label>维修/定损情况</label>
+          <select name="repair_status"><option value="">请选择</option><option value="未定损">未定损</option><option value="已定损">已定损</option><option value="已维修">已维修</option></select>
+        </div>
+      </div>
+      <div class="form-row single"><div class="form-group"><label>其他财物损失</label><input type="text" name="other_property_loss" placeholder="如手机损坏、衣物损坏等"></div></div>
+    </div>
+
+    <!-- 六、刑事风险提示 -->
+    <div class="section">
+      <div class="section-title"><span class="num">6</span>刑事风险提示<span class="required-badge">必填</span></div>
+      <div class="risk-warning">
+        <div class="risk-title">请确认是否存在以下情形（可多选）</div>
+        <div class="check-group">
+          <label class="check-item"><input type="checkbox" name="criminal_risk" value="造成人员死亡"><span class="check-label">造成人员死亡</span></label>
+          <label class="check-item"><input type="checkbox" name="criminal_risk" value="重伤3人以上"><span class="check-label">重伤3人以上</span></label>
+          <label class="check-item"><input type="checkbox" name="criminal_risk" value="酒驾/毒驾"><span class="check-label">酒驾/毒驾</span></label>
+          <label class="check-item"><input type="checkbox" name="criminal_risk" value="无证驾驶"><span class="check-label">无证驾驶</span></label>
+          <label class="check-item"><input type="checkbox" name="criminal_risk" value="逃逸"><span class="check-label">逃逸</span></label>
+          <label class="check-item"><input type="checkbox" name="criminal_risk" value="均不存在"><span class="check-label">均不存在</span></label>
+        </div>
+      </div>
+      <div class="form-row single"><div class="form-group"><label>如已立案或取保，请简注</label><input type="text" name="criminal_note" placeholder="如：已被取保候审/已立案等"></div></div>
+    </div>
+
+    <!-- 七、核心诉求 -->
+    <div class="section">
+      <div class="section-title"><span class="num">7</span>核心诉求<span class="required-badge">必填</span></div>
+      <div class="form-row single">
+        <div class="form-group"><label><span class="star">*</span>最想解决的1-2件事</label>
+          <div class="check-group">
+            <label class="check-item"><input type="checkbox" name="demands" value="尽快拿到赔偿款"><span class="check-label">尽快拿到赔偿款</span></label>
+            <label class="check-item"><input type="checkbox" name="demands" value="争取伤残赔偿"><span class="check-label">争取伤残赔偿</span></label>
+            <label class="check-item"><input type="checkbox" name="demands" value="争取双赔/工伤"><span class="check-label">争取双赔/工伤</span></label>
+            <label class="check-item"><input type="checkbox" name="demands" value="降低刑责/取保"><span class="check-label">降低刑责/取保</span></label>
+            <label class="check-item"><input type="checkbox" name="demands" value="对方道歉/追究刑责"><span class="check-label">对方道歉/追究刑责</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row single"><div class="form-group"><label>其他诉求</label><input type="text" name="other_demands" placeholder="如有其他诉求请填写"></div></div>
+    </div>
+
+    <!-- 八、诉讼状态 -->
+    <div class="section">
+      <div class="section-title"><span class="num">8</span>诉讼状态<span class="required-badge">必填</span></div>
+      <div class="form-row single">
+        <div class="form-group"><label><span class="star">*</span>当前诉讼状态</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="litigation_status" value="未起诉" required><span class="check-label">未起诉</span></label>
+            <label class="check-item"><input type="radio" name="litigation_status" value="已立案"><span class="check-label">已立案</span></label>
+            <label class="check-item"><input type="radio" name="litigation_status" value="收到传票"><span class="check-label">收到传票</span></label>
+            <label class="check-item"><input type="radio" name="litigation_status" value="已委托律师"><span class="check-label">已委托律师</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>案号（如有）</label><input type="text" name="case_no" placeholder="案号"></div>
+        <div class="form-group"><label>案由（如有）</label><input type="text" name="case_cause" placeholder="案由"></div>
+      </div>
+    </div>
+
+    <!-- 九、已有材料清单 -->
+    <div class="section">
+      <div class="section-title"><span class="num">9</span>已有材料清单</div>
+      <p style="font-size:13px;color:var(--seed-muted);margin-bottom:12px;">请勾选您手中已有的材料：</p>
+      <div class="material-grid">
+        <label class="material-item"><input type="checkbox" name="materials" value="事故认定书"><span class="check-icon"></span><span>事故认定书</span></label>
+        <label class="material-item"><input type="checkbox" name="materials" value="身份证/驾驶证/行驶证"><span class="check-icon"></span><span>身份证/驾驶证/行驶证</span></label>
+        <label class="material-item"><input type="checkbox" name="materials" value="保单/保单号"><span class="check-icon"></span><span>保单/保单号</span></label>
+        <label class="material-item"><input type="checkbox" name="materials" value="医疗发票/费用清单"><span class="check-icon"></span><span>医疗发票/费用清单</span></label>
+        <label class="material-item"><input type="checkbox" name="materials" value="诊断证明/病历"><span class="check-icon"></span><span>诊断证明/病历</span></label>
+        <label class="material-item"><input type="checkbox" name="materials" value="出院小结"><span class="check-icon"></span><span>出院小结</span></label>
+        <label class="material-item material-parent"><input type="checkbox" name="materials" value="鉴定报告"><span class="check-icon"></span><span>鉴定报告</span>
+          <div class="material-sub-group">
+            <label class="material-sub"><input type="checkbox" name="materials_sub" value="伤残等级鉴定"><span class="sub-icon"></span><span>伤残等级鉴定</span></label>
+            <label class="material-sub"><input type="checkbox" name="materials_sub" value="三期鉴定"><span class="sub-icon"></span><span>三期鉴定</span></label>
+          </div>
+        </label>
+        <label class="material-item"><input type="checkbox" name="materials" value="现场照片/视频"><span class="check-icon"></span><span>现场照片/视频</span></label>
+        <label class="material-item"><input type="checkbox" name="materials" value="监控录像"><span class="check-icon"></span><span>监控录像</span></label>
+        <label class="material-item"><input type="checkbox" name="materials" value="维修发票/定损单"><span class="check-icon"></span><span>维修发票/定损单</span></label>
+        <label class="material-item"><input type="checkbox" name="materials" value="误工证明/收入证明"><span class="check-icon"></span><span>误工证明/收入证明</span></label>
+        <label class="material-item"><input type="checkbox" name="materials" value="交通费票据"><span class="check-icon"></span><span>交通费票据</span></label>
+      </div>
+      <div class="form-row single" style="margin-top:8px"><div class="form-group"><label>其他材料</label><input type="text" name="other_materials" placeholder="如有其他材料请填写"></div></div>
+    </div>
+
+    <!-- 补充说明 -->
+    <div class="section">
+      <div class="section-title"><span class="num">+</span>其他想补充的事实</div>
+      <div class="form-row single"><div class="form-group"><textarea name="additional_notes" rows="4" placeholder="如有其他需要说明的情况，请在此填写..."></textarea></div></div>
+    </div>
+
+    <!-- 填写人信息 -->
+    <div class="section">
+      <div class="section-title"><span class="num">+</span>填写人信息<span class="required-badge">必填</span></div>
+      <p style="font-size:13px;color:var(--seed-muted);margin-bottom:12px;">如非本人填写，请填写实际填写人信息：</p>
+      <div class="form-row">
+        <div class="form-group"><label><span class="star">*</span>填写人姓名</label><input type="text" name="filler_name" required placeholder="填写人姓名"></div>
+        <div class="form-group"><label><span class="star">*</span>填写人联系电话</label><input type="tel" name="filler_phone" required placeholder="手机号码"></div>
+      </div>
+      <div class="form-row single"><div class="form-group"><label>与当事人关系</label><input type="text" name="filler_relation" placeholder="例：本人 / 配偶 / 子女 / 朋友"></div></div>
+    </div>
+
+    <!-- 按钮 -->
+    <div class="btn-group no-print">
+      <button type="button" class="btn btn-secondary" onclick="clearForm()">清空重填</button>
+      <button type="button" class="btn btn-primary" onclick="window.print()">导出PDF回传</button>
+    </div>
+
+  </form>
+
+  <div class="footer">
+    <div id="footerText" style="font-size:13px;color:var(--seed-primary);font-weight:500;margin-bottom:4px;"></div>
+    <div style="font-size:11px;color:#bbb;letter-spacing:0.5px;">Designed by YS Lawyer</div>
+  </div>
+</div>
+
+<!-- ===== Success Overlay ===== -->
+<div class="overlay-backdrop" id="successOverlay">
+  <div class="overlay-card">
+    <div class="overlay-icon">&#10003;</div>
+    <div class="overlay-title">问询单已提交</div>
+    <div class="overlay-info" id="overlayInfo"></div>
+    <div class="overlay-steps" id="overlaySteps"></div>
+    <div class="overlay-btns">
+      <button class="overlay-btn overlay-btn-ok" onclick="closeOverlay()">我知道了</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== Config from URL params =====
+  var CONFIG_KEYS = { firm: 'fn', lawyer: 'lw', contact: 'ct', title: 'tt', return_text: 'rt', team: 'tm', slogan: 'sl' };
+
+  function loadConfigFromURL() {
+    var params = new URLSearchParams(window.location.search);
+    var config = {};
+    for (var key in CONFIG_KEYS) {
+      var val = params.get(CONFIG_KEYS[key]);
+      if (val) config[key] = decodeURIComponent(val);
+    }
+    return config;
+  }
+
+  function applyConfigToForm(config) {
+    if (config.firm || config.lawyer || config.contact) {
+      var firmInfo = document.getElementById('firmInfo');
+      var parts = [];
+      if (config.firm) parts.push(config.firm);
+      if (config.lawyer) parts.push('接洽联络人：' + config.lawyer);
+      if (config.contact) parts.push('联系电话：' + config.contact);
+      firmInfo.textContent = parts.join(' | ');
+      firmInfo.style.display = 'block';
+    }
+    if (config.firm) {
+      var newTitle = '来自【' + config.firm + '】的交通事故问询单';
+      document.getElementById('formTitle').textContent = newTitle;
+      document.title = newTitle;
+    } else if (config.title) {
+      document.getElementById('formTitle').textContent = config.title;
+      document.title = config.title;
+    }
+    if (config.return_text) {
+      var notice = document.getElementById('returnNotice');
+      var lines = config.return_text.split(/[；;\n]/).filter(function(l) { return l.trim(); });
+      var html = '<strong>回发指引：</strong><ol>';
+      if (lines.length > 0) {
+        lines.forEach(function(line) { html += '<li>' + line.trim() + '</li>'; });
+      } else {
+        html += '<li>' + config.return_text + '</li>';
+      }
+      html += '</ol>';
+      notice.innerHTML = html;
+    }
+    if (config.firm || config.team || config.slogan) {
+      var footerParts = [];
+      if (config.firm) footerParts.push(config.firm);
+      if (config.team) footerParts.push(config.team);
+      var footerText = footerParts.join('·');
+      if (config.slogan) footerText += (footerText ? ' — ' : '') + config.slogan;
+      document.getElementById('footerText').textContent = footerText;
+    }
+    if (config.firm) document.getElementById('cfgFirm').value = config.firm;
+    if (config.lawyer) document.getElementById('cfgLawyer').value = config.lawyer;
+    if (config.contact) document.getElementById('cfgContact').value = config.contact;
+    if (config.title) document.getElementById('cfgTitle').value = config.title;
+    if (config.return_text) document.getElementById('cfgReturn').value = config.return_text;
+    if (config.team) document.getElementById('cfgTeam').value = config.team;
+    if (config.slogan) document.getElementById('cfgSlogan').value = config.slogan;
+  }
+
+  // ===== Admin Panel =====
+  function toggleAdmin() {
+    document.getElementById('adminPanel').classList.toggle('active');
+  }
+
+  function applyConfig() {
+    applyConfigToForm(readConfigFromPanel());
+  }
+
+  function readConfigFromPanel() {
+    return {
+      firm: document.getElementById('cfgFirm').value.trim(),
+      lawyer: document.getElementById('cfgLawyer').value.trim(),
+      contact: document.getElementById('cfgContact').value.trim(),
+      title: document.getElementById('cfgTitle').value.trim(),
+      return_text: document.getElementById('cfgReturn').value.trim(),
+      team: document.getElementById('cfgTeam').value.trim(),
+      slogan: document.getElementById('cfgSlogan').value.trim()
+    };
+  }
+
+  function generateLink() {
+    var config = readConfigFromPanel();
+    var params = new URLSearchParams();
+    if (config.firm) params.set(CONFIG_KEYS.firm, config.firm);
+    if (config.lawyer) params.set(CONFIG_KEYS.lawyer, config.lawyer);
+    if (config.contact) params.set(CONFIG_KEYS.contact, config.contact);
+    if (config.title && config.title !== '交通事故接案问询单') params.set(CONFIG_KEYS.title, config.title);
+    if (config.return_text) params.set(CONFIG_KEYS.return_text, config.return_text);
+    if (config.team) params.set(CONFIG_KEYS.team, config.team);
+    if (config.slogan) params.set(CONFIG_KEYS.slogan, config.slogan);
+    var baseURL = window.location.href.split('?')[0].split('#')[0];
+    var link = baseURL + '?' + params.toString();
+    var linkBox = document.getElementById('adminLinkBox');
+    var linkText = document.getElementById('adminLinkText');
+    var titlePreview = config.firm ? '来自【' + config.firm + '】的交通事故问询单' : (config.title || '交通事故接案问询单');
+    linkText.value = link + '\n标题预览：' + titlePreview + (config.contact ? '\n联系电话：' + config.contact : '');
+    linkBox.style.display = 'block';
+    linkText.select();
+  }
+
+  // ===== Generate Customized HTML File =====
+  function generateHTMLFile() {
+    var config = readConfigFromPanel();
+    if (!config.firm && !config.lawyer && !config.contact) {
+      alert('请至少填写一项配置信息（律所名称、联络人或联系电话）');
+      return;
+    }
+
+    // Get the full HTML source
+    var htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+    // 1. Inject config as a global variable before the main <script> tag
+    //    The init code will pick this up automatically — no separate <script> needed
+    var configJSON = JSON.stringify(config);
+    var configScript = '<script>window.__EMBEDDED_CONFIG__=' + configJSON + ';</' + 'script>\n';
+    htmlContent = htmlContent.replace('<script>', configScript + '<script>');
+
+    // 2. Force-hide admin panel in the generated file
+    var hidePanelStyle = '<style>.admin-panel,.admin-panel.active{display:none!important;}</style>';
+    htmlContent = htmlContent.replace('</head>', hidePanelStyle + '</head>');
+
+    // 3. Remove the marker comment from the generated file (it's only for reliable injection)
+    htmlContent = htmlContent.replace('<!--CONFIG_MARKER-->', '');
+
+    // Generate filename
+    var firmShort = (config.firm || '交通事故').replace(/[<>:"/\\|?*]/g, '');
+    var now = new Date();
+    var dateStr = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
+    var filename = '交通事故问询单_' + firmShort + '_' + dateStr + '.html';
+
+    // Trigger download
+    var blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // Close the admin panel on the current page after generating
+    document.getElementById('adminPanel').classList.remove('active');
+
+    // Show confirmation
+    var titlePreview = config.firm ? '来自【' + config.firm + '】的交通事故问询单' : '交通事故接案问询单';
+    alert('定制文件已生成！\n\n文件名：' + filename + '\n标题：' + titlePreview + (config.contact ? '\n联系电话：' + config.contact : '') + '\n\n请直接通过微信将此文件发送给客户。');
+  }
+
+  // ===== Deadline Calculation =====
+  function addDays(d, days) { var r = new Date(d); r.setDate(r.getDate() + days); return r; }
+  function addYears(d, y) { var r = new Date(d); r.setFullYear(r.getFullYear() + y); return r; }
+  function addMonths(d, m) { var r = new Date(d); r.setMonth(r.getMonth() + m); return r; }
+  function daysBetween(a, b) { return Math.ceil((b - a) / (1000 * 60 * 60 * 24)); }
+  function formatDate(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  function remainingText(deadlineDate) {
+    var days = daysBetween(new Date(), deadlineDate);
+    if (days < 0) return '已过期' + Math.abs(days) + '天';
+    if (days === 0) return '今天到期';
+    return '剩余' + days + '天';
+  }
+
+  function calculateDeadlines(formData) {
+    var accidentDateStr = formData.get('accident_date');
+    var firstVisitStr = formData.get('first_visit_date');
+    var recovery = formData.get('recovery') || '';
+    var disabilityAssessed = formData.get('disability_assessed') || '';
+    var workRelated = formData.get('work_related') || '';
+    var injuredParty = formData.getAll('injured_party') || [];
+    var litigationStatus = formData.get('litigation_status') || '';
+    var liability = formData.get('liability') || '';
+    var deadlines = [];
+    var today = new Date();
+    var accidentDate = accidentDateStr ? new Date(accidentDateStr) : null;
+    var firstVisitDate = firstVisitStr ? new Date(firstVisitStr) : null;
+    var refDate = accidentDate || firstVisitDate || today;
+
+    // 1. 工伤认定
+    if (workRelated === '是' || workRelated === '不确定') {
+      if (accidentDate) {
+        var ed = addDays(accidentDate, 30);
+        var pd = addYears(accidentDate, 1);
+        deadlines.push({ item: '工伤认定申请（单位申请）', legal_basis: '《工伤保险条例》第17条', deadline: formatDate(ed), remaining: remainingText(ed), urgent: today > ed || daysBetween(today, ed) <= 90, note: '用人单位应自事故伤害发生之日起30日内提出申请' });
+        deadlines.push({ item: '工伤认定申请（个人申请）', legal_basis: '《工伤保险条例》第17条', deadline: formatDate(pd), remaining: remainingText(pd), urgent: today > pd || daysBetween(today, pd) <= 90, note: '单位未申请的，工伤职工或其近亲属可在1年内直接申请' });
+      }
+    }
+
+    // 2. 伤残鉴定
+    if ((injuredParty.indexOf('本人') >= 0 || injuredParty.indexOf('乘客') >= 0) && disabilityAssessed === '未做') {
+      var assessReady = firstVisitDate ? addMonths(firstVisitDate, 3) : addMonths(refDate, 3);
+      deadlines.push({ item: '伤残等级鉴定', legal_basis: '《人体损伤致残程度分级》', deadline: formatDate(assessReady) + ' 起可做', remaining: '建议治疗终结后尽早', urgent: false, note: '一般在医疗终结或出院后3-6个月可进行鉴定，具体视伤情而定' });
+    }
+
+    // 3. 二次治疗
+    if (recovery === '需继续治疗' || recovery === '构成伤残') {
+      deadlines.push({ item: '二次治疗/后续治疗', legal_basis: '《人身损害赔偿司法解释》第6条', deadline: '待医嘱确定后续治疗方案后及时主张', remaining: '可待实际发生后另行主张', urgent: false, note: '后续治疗费可在实际发生后另行起诉，也可根据医疗证明一并主张' });
+    }
+
+    // 4. 民事诉讼时效
+    if (accidentDate) {
+      var ld = addYears(accidentDate, 3);
+      deadlines.push({ item: '提起民事诉讼', legal_basis: '《民法典》第188条', deadline: formatDate(ld), remaining: remainingText(ld), urgent: today > ld || daysBetween(today, ld) <= 90, note: '诉讼时效期间为3年，自知道或应当知道权利受到损害之日起计算' });
+    }
+
+    // 5. 保险理赔
+    deadlines.push({ item: '保险理赔申请', legal_basis: '《保险法》第26条', deadline: '建议尽快提交', remaining: '人寿保险5年，非人寿保险2年', urgent: false, note: '交强险及商业险理赔应及时报案，避免因延迟导致拒赔争议' });
+
+    // 6. 事故认定复核
+    if (liability === '尚未认定' || liability === '主次责任' || liability === '同等责任') {
+      deadlines.push({ item: '交通事故认定复核', legal_basis: '《道路交通事故处理程序规定》第71条', deadline: '收到认定书之日起3日内', remaining: '收到认定书后立即申请', urgent: true, note: '对交通事故认定有异议的，可自收到认定书之日起3日内申请复核' });
+    }
+
+    // 7. 财产保全
+    if (litigationStatus === '未起诉') {
+      deadlines.push({ item: '诉前财产保全', legal_basis: '《民事诉讼法》第104条', deadline: '起诉前或起诉同时申请', remaining: '建议立案前或立案时同步申请', urgent: false, note: '申请诉前保全后30日内须提起诉讼，否则保全解除' });
+    }
+
+    return deadlines;
+  }
+
+  // ===== Progress Tracking =====
+  var form = document.getElementById('questionnaireForm');
+  var progressFill = document.getElementById('progressFill');
+  var progressPercent = document.getElementById('progressPercent');
+
+  function updateProgress() {
+    var allInputs = form.querySelectorAll('input[required]');
+    var requiredGroups = new Set();
+    allInputs.forEach(function(input) { requiredGroups.add(input.name); });
+    var filled = 0, total = requiredGroups.size;
+    requiredGroups.forEach(function(name) {
+      var els = form.querySelectorAll('[name="' + name + '"]');
+      var hasValue = Array.from(els).some(function(el) {
+        if (el.type === 'radio' || el.type === 'checkbox') return el.checked;
+        return el.value && el.value.trim() !== '';
+      });
+      if (hasValue) filled++;
+    });
+    var pct = total > 0 ? Math.round((filled / total) * 100) : 0;
+    progressFill.style.width = pct + '%';
+    progressPercent.textContent = pct + '%';
+  }
+
+  form.addEventListener('input', updateProgress);
+  form.addEventListener('change', updateProgress);
+
+  document.querySelectorAll('[name="hospitalized"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      document.getElementById('hospitalizationDetail').style.display = this.value === '是' ? 'grid' : 'none';
+    });
+  });
+
+  // Vehicle owner section: show when party is NOT the vehicle owner
+  document.querySelectorAll('[name="party_identity"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      var section = document.getElementById('vehicleOwnerSection');
+      if (this.value === '车主') {
+        section.classList.remove('visible');
+      } else {
+        section.classList.add('visible');
+      }
+    });
+  });
+
+  // Injured party: "无人伤" is mutually exclusive with other options
+  document.querySelectorAll('[name="injured_party"]').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      if (this.value === '无人伤' && this.checked) {
+        document.querySelectorAll('[name="injured_party"]').forEach(function(other) {
+          if (other.value !== '无人伤') other.checked = false;
+        });
+      } else if (this.value !== '无人伤' && this.checked) {
+        document.querySelectorAll('[name="injured_party"][value="无人伤"]').forEach(function(none) {
+          none.checked = false;
+        });
+      }
+    });
+  });
+
+  // ===== Submit =====
+  function submitForm() {
+    var requiredFields = form.querySelectorAll('[required]');
+    var allValid = true, firstInvalid = null;
+
+    requiredFields.forEach(function(field) {
+      if (field.type === 'radio') {
+        var group = form.querySelectorAll('[name="' + field.name + '"]:checked');
+        if (group.length === 0) {
+          allValid = false;
+          var first = form.querySelector('[name="' + field.name + '"]');
+          if (first && !firstInvalid) firstInvalid = first.closest('.check-group');
+        }
+      } else if (field.type === 'checkbox') {
+        var checkedGroup = form.querySelectorAll('[name="' + field.name + '"]:checked');
+        if (checkedGroup.length === 0) {
+          allValid = false;
+          var firstCb = form.querySelector('[name="' + field.name + '"]');
+          if (firstCb && !firstInvalid) firstInvalid = firstCb.closest('.check-group');
+        }
+      } else if (!field.value || field.value.trim() === '') {
+        allValid = false;
+        field.style.borderColor = '#c0534d';
+        if (!firstInvalid) firstInvalid = field;
+      } else {
+        field.style.borderColor = '';
+      }
+    });
+
+    if (!allValid) {
+      if (firstInvalid) firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      alert('请完成所有必填项（标有 * 的项目）后再提交。');
+      return;
+    }
+
+    var data = new FormData(form);
+    var result = {};
+    for (var entry of data.entries()) {
+      var key = entry[0], value = entry[1];
+      if (result[key]) {
+        if (Array.isArray(result[key])) result[key].push(value);
+        else result[key] = [result[key], value];
+      } else { result[key] = value; }
+    }
+
+    var now = new Date();
+    var caseId = 'TA-' + now.getFullYear() +
+      String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') +
+      String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') +
+      String(now.getSeconds()).padStart(2,'0');
+
+    var deadlines = calculateDeadlines(data);
+
+    var payload = {
+      _meta: { case_id: caseId, form_version: '2.0', submit_time: now.toISOString(), skill: 'traffic-accident-intake', config: loadConfigFromURL() },
+      sections: {
+        basic_info: { name: result.name||'', gender: result.gender||'', birthdate: result.birthdate||'', idcard: result.idcard||'', phone: result.phone||'', emergency_phone: result.emergency_phone||'', address: result.address||'', occupation: result.occupation||'', employer: result.employer||'', party_identity: result.party_identity||'' },
+        vehicle_owner: { name: result.vo_name||'', relationship: result.vo_relationship||'', phone: result.vo_phone||'', idcard: result.vo_idcard||'' },
+        accident: { date: result.accident_date||'', time: result.accident_time||'', location: result.accident_location||'', weather: result.weather||[], liability: result.liability||'', liability_ratio: result.liability_ratio||'', reported: result.reported||'', report_no: result.report_no||'', accident_type: result.accident_type||'', commercial: result.commercial||'', work_related: result.work_related||'' },
+        injury: { injured_party: result.injured_party||[], injury_part: result.injury_part||'', hospital: result.hospital||'', first_visit_date: result.first_visit_date||'', diagnosis: result.diagnosis||'', hospitalized: result.hospitalized||'', hosp_start: result.hosp_start||'', hosp_end: result.hosp_end||'', surgery: result.surgery||'', recovery: result.recovery||'', disability_assessed: result.disability_assessed||'', disability_level: result.disability_level||'', nursing_dependency: result.nursing_dependency||'', nursing_count: result.nursing_count||'', nursing_note: result.nursing_note||'' },
+        insurance: { types: result.insurance||[], insurer: result.insurer||'', policy_info: result.policy_info||'', opposite_insurance: result.opposite_insurance||'' },
+        property: { vehicle_type: result.vehicle_type||'', drivable: result.drivable||'', vehicle_damage: result.vehicle_damage||'', repair_status: result.repair_status||'', other_property_loss: result.other_property_loss||'' },
+        criminal: { risks: result.criminal_risk||[], note: result.criminal_note||'' },
+        demands: { main: result.demands||[], other: result.other_demands||'' },
+        litigation: { status: result.litigation_status||'', case_no: result.case_no||'', case_cause: result.case_cause||'' },
+        materials: { checklist: result.materials||[], sub_checklist: result.materials_sub||[], other: result.other_materials||'' },
+        additional_notes: result.additional_notes||'',
+        filler: { name: result.filler_name||'', phone: result.filler_phone||'', relation: result.filler_relation||'' }
+      },
+      deadline_reminders: deadlines.map(function(d) { return { item: d.item, legal_basis: d.legal_basis, deadline: d.deadline, remaining: d.remaining, urgent: d.urgent, note: d.note }; })
+    };
+
+    var clientName = result.name || '客户';
+    var dateStr = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
+    var filename = '交通事故问询单_' + clientName + '_' + dateStr + '.json';
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    var config = loadConfigFromURL();
+    document.getElementById('overlayInfo').innerHTML =
+      '<strong>案件编号：</strong>' + caseId + '<br><strong>咨询人：</strong>' + clientName + '<br><strong>数据文件：</strong>' + filename;
+    var returnText = config.return_text || '请将下载的文件通过微信发送给接洽联络人';
+    var steps = returnText.split(/[；;\n]/).filter(function(l) { return l.trim(); });
+    var stepsHTML = '';
+    if (steps.length <= 1) {
+      stepsHTML = '<div><span class="step-num">1</span>文件已自动下载到您的设备</div><div><span class="step-num">2</span>' + (steps[0] || '请将文件发送给接洽联络人') + '</div><div><span class="step-num">3</span>如需纸质版，可点击"打印/导出PDF"</div>';
+    } else {
+      steps.forEach(function(s, i) { stepsHTML += '<div><span class="step-num">' + (i+1) + '</span>' + s.trim() + '</div>'; });
+    }
+    document.getElementById('overlaySteps').innerHTML = stepsHTML;
+    document.getElementById('successOverlay').classList.add('active');
+  }
+
+  function closeOverlay() { document.getElementById('successOverlay').classList.remove('active'); }
+
+  function clearForm() {
+    if (confirm('确定要清空所有已填写的内容吗？')) {
+      form.reset(); updateProgress();
+      document.getElementById('hospitalizationDetail').style.display = 'none';
+      document.getElementById('vehicleOwnerSection').classList.remove('visible');
+    }
+  }
+
+  // ===== Variant Switching =====
+  function switchVariant(variant, btn) {
+    document.body.classList.remove('variant-b', 'variant-c');
+    if (variant === 'b') document.body.classList.add('variant-b');
+    else if (variant === 'c') document.body.classList.add('variant-c');
+    var buttons = document.querySelectorAll('.variant-switcher button');
+    buttons.forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+  }
+
+  // ===== Init =====
+  var urlConfig = loadConfigFromURL();
+  if (Object.keys(urlConfig).length > 0) {
+    applyConfigToForm(urlConfig);
+  } else if (window.__EMBEDDED_CONFIG__) {
+    applyConfigToForm(window.__EMBEDDED_CONFIG__);
+  }
+
+  // Admin panel: triple-click header to toggle
+  var clickCount = 0, clickTimer = null;
+  document.getElementById('formHeader').addEventListener('click', function() {
+    clickCount++;
+    if (clickCount === 3) {
+      clickCount = 0; clearTimeout(clickTimer); toggleAdmin();
+    } else {
+      clearTimeout(clickTimer);
+      clickTimer = setTimeout(function() { clickCount = 0; }, 500);
+    }
+  });
+</script>
+<!--CONFIG_MARKER-->
+</body>
+</html>

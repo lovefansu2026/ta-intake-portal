@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交通事故案件接案中心</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="client-layout">
+
+  <!-- ===== Navigation ===== -->
+  <nav class="client-nav">
+    <div class="logo">
+      <div class="logo-icon">&#9878;</div>
+      <span>接案中心</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#/" class="active" data-route="/">首页</a></li>
+      <li><a href="#/process" data-route="/process">服务流程</a></li>
+      <li><a href="#/intake" data-route="/intake">在线问询</a></li>
+    </ul>
+    <div class="nav-actions">
+      <button class="theme-toggle" id="themeToggle" title="切换主题">&#9790;</button>
+      <a href="team.html" class="btn btn-sm btn-secondary">&#128274; 工作台</a>
+    </div>
+  </nav>
+
+  <!-- ===== Home View ===== -->
+  <div class="view active" id="view-home">
+
+    <!-- Hero -->
+    <div class="hero">
+      <h1>交通事故案件接案中心</h1>
+      <p class="subtitle">专业高效的交通事故案件全流程管理工具，从首次咨询到立案启动，三步完成</p>
+      <div class="hero-cta">
+        <button class="btn-hero btn-hero-primary" onclick="location.hash='#/intake'">立即填写问询单</button>
+        <button class="btn-hero btn-hero-secondary" onclick="location.hash='#/process'">了解服务流程</button>
+      </div>
+    </div>
+
+    <!-- Service Cards -->
+    <div class="service-grid">
+      <div class="service-card">
+        <div class="service-icon">&#128203;</div>
+        <h3>在线问询</h3>
+        <p>填写结构化问询单，涵盖当事人信息、事故经过、伤情治疗、保险财产等九大模块，系统自动生成案件编号与时效提醒</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">&#128269;</div>
+        <h3>专业接谈</h3>
+        <p>律师基于问询数据生成接谈分析报告，涵盖法律关系分析、赔偿预估、证据评估、风险预警与诉讼策略建议</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">&#128218;</div>
+        <h3>立案指引</h3>
+        <p>证据完整性逐项核查、立案条件评估、赔偿金额精确计算、诉讼风险矩阵，一站式立案准备支持</p>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div style="max-width:1200px;margin:0 auto;padding:0 24px 48px;">
+      <h2 style="text-align:center;font-size:24px;font-weight:700;margin-bottom:32px;">核心能力</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+        <div class="card" style="text-align:center;padding:24px;">
+          <div style="font-size:32px;font-weight:800;color:var(--primary);">9</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">大问询模块</div>
+        </div>
+        <div class="card" style="text-align:center;padding:24px;">
+          <div style="font-size:32px;font-weight:800;color:var(--success);">7+</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">类时效自动计算</div>
+        </div>
+        <div class="card" style="text-align:center;padding:24px;">
+          <div style="font-size:32px;font-weight:800;color:var(--warning);">15</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">项赔偿预估</div>
+        </div>
+        <div class="card" style="text-align:center;padding:24px;">
+          <div style="font-size:32px;font-weight:800;color:var(--info);">21</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">项证据核查</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center;padding:32px;border-top:1px solid var(--border);color:var(--text-muted);font-size:13px;">
+      <p>法律依据版本：2026-06-26 &nbsp;|&nbsp;  Powered by traffic-accident-intake skill</p>
+    </div>
+  </div>
+
+  <!-- ===== Process View ===== -->
+  <div class="view" id="view-process">
+    <div class="process-section">
+      <h2>服务流程</h2>
+      <p style="text-align:center;color:var(--text-secondary);margin:-32px auto 48px;max-width:600px;font-size:15px;">
+        从首次咨询到立案启动，三个阶段有序推进，点击每个阶段查看详细内容
+      </p>
+
+      <div class="process-timeline">
+        <!-- Phase 1 -->
+        <div class="process-step" onclick="toggleStep(this)">
+          <div class="step-dot">1</div>
+          <div class="step-card">
+            <h3>&#128203; 阶段一 &middot; 在线问询</h3>
+            <p>客户填写结构化问询单，系统自动生成案件编号和时效提醒，律师获取完整案件信息</p>
+            <div class="step-details">
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>九大模块覆盖：当事人信息、事故经过、伤情治疗、保险、财产、刑事风险、诉求、诉讼状态、材料清单</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>自动生成案件编号（TA-时间戳格式）</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>内置时效计算引擎：工伤认定、伤残鉴定、诉讼时效、保险理赔等7+类关键期限</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>提交后导出JSON数据文件，客户可通过微信回传</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>支持打印/导出PDF作为纸质备份</div>
+              <div style="margin-top:16px;">
+                <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();location.hash='#/intake'">前往填写问询单 &rarr;</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase 2 -->
+        <div class="process-step" onclick="toggleStep(this)">
+          <div class="step-dot">2</div>
+          <div class="step-card">
+            <h3>&#128269; 阶段二 &middot; 接谈分析</h3>
+            <p>律师面谈客户时，基于问询数据生成结构化接谈分析报告，辅助高效决策</p>
+            <div class="step-details">
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>案件基本信息：当事人、事故概况、责任认定、伤亡情况</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>法律关系分析：侵权关系、保险合同、劳动/工伤、好意同乘、挂靠经营</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>赔偿项目预估：15项赔偿逐条预估，引用最新地方标准</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>证据现状评估：已有证据 vs 缺失证据，证据链完整性分析</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>风险评估：诉讼时效、责任争议、执行风险、刑事风险</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>诉讼策略建议：被告选择、管辖法院、保险索赔策略</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>面谈补充提问清单：基于信息缺口自动生成追问清单</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>下一步行动：紧急/短期/中期行动项</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase 3 -->
+        <div class="process-step" onclick="toggleStep(this)">
+          <div class="step-dot">3</div>
+          <div class="step-card">
+            <h3>&#128218; 阶段三 &middot; 立案准备</h3>
+            <p>咨询完成、证据到位后，输出立案准备指引，全面支持立案决策</p>
+            <div class="step-details">
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>证据完整性核查：21项证据逐项对照标注（已有/缺失/可选）</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>立案条件评估：原告资格、被告明确性、管辖、时效</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>赔偿金额精确计算：基于证据材料和最新标准逐项计算</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>诉讼风险矩阵：责任争议、证据不足、保险免责、执行不能等</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>立案材料清单：起诉状、证据目录、主体证明等完整清单</div>
+              <div class="step-detail-item"><span class="detail-icon">&#10003;</span>立案操作指引：诉讼费速算、网上/现场/跨域立案流程</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Intake View ===== -->
+  <div class="view" id="view-intake">
+    <div class="intake-frame-wrapper">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:22px;font-weight:700;margin-bottom:8px;">在线问询单</h2>
+        <p style="color:var(--text-secondary);font-size:14px;">
+          请如实填写以下信息，带 <strong>*</strong> 的为必填项。信息越完整，律师给出的方案越精准。
+          所有信息仅用于律师内部评估，严格保密。
+        </p>
+      </div>
+      <div id="intakeContainer" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;">
+        <iframe id="intakeFrame" src="intake-form.html" style="width:100%;min-height:80vh;border:none;" onload="autoResizeFrame(this)"></iframe>
+      </div>
+      <div style="margin-top:16px;text-align:center;color:var(--text-muted);font-size:13px;">
+        <p>填写完成后点击"确认提交"，系统将自动生成案件编号并下载数据文件。</p>
+        <p style="margin-top:4px;">如需帮助，请联系接洽联络人。</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===== Client Portal Router =====
+function navigateClient() {
+  var hash = location.hash.replace('#', '') || '/';
+  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+  document.querySelectorAll('.client-nav .nav-links a').forEach(function(a) { a.classList.remove('active'); });
+
+  var viewId = 'view-home';
+  if (hash === '/process') viewId = 'view-process';
+  else if (hash === '/intake') viewId = 'view-intake';
+
+  var view = document.getElementById(viewId);
+  if (view) view.classList.add('active');
+
+  var activeLink = document.querySelector('.client-nav .nav-links a[data-route="' + hash + '"]');
+  if (activeLink) activeLink.classList.add('active');
+}
+
+window.addEventListener('hashchange', navigateClient);
+window.addEventListener('load', navigateClient);
+
+// ===== Process Step Toggle =====
+function toggleStep(el) {
+  el.classList.toggle('expanded');
+}
+
+// ===== Theme Toggle =====
+var themeToggle = document.getElementById('themeToggle');
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  themeToggle.textContent = theme === 'dark' ? '\u2600' : '\u263E';
+  try { localStorage.setItem('ta-theme', theme); } catch(e) {}
+}
+
+themeToggle.addEventListener('click', function() {
+  var current = document.documentElement.getAttribute('data-theme');
+  setTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+// Load saved theme
+try {
+  var saved = localStorage.getItem('ta-theme');
+  if (saved) setTheme(saved);
+  else if (window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
+} catch(e) {}
+
+// ===== Iframe Auto Resize =====
+function autoResizeFrame(iframe) {
+  try {
+    var h = iframe.contentDocument.documentElement.scrollHeight;
+    if (h > 400) iframe.style.minHeight = h + 'px';
+  } catch(e) {}
+}
+</script>
+</body>
+</html>

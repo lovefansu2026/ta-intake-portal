@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>团队工作台 — 交通事故接案中心</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="team-layout">
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">&#9878;</div>
+        <div>
+          <div>工作台</div>
+          <div class="logo-sub">交通事故接案中心</div>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">概览</div>
+      <a class="nav-item active" href="#/" data-route="/" onclick="navigate(this)">
+        <span class="nav-icon">&#128200;</span> 仪表盘
+      </a>
+
+      <div class="nav-section">案件管理</div>
+      <a class="nav-item" href="#/cases" data-route="/cases" onclick="navigate(this)">
+        <span class="nav-icon">&#128194;</span> 案件看板
+      </a>
+      <a class="nav-item" href="#/deadlines" data-route="/deadlines" onclick="navigate(this)">
+        <span class="nav-icon">&#9200;</span> 期限管理
+        <span class="nav-badge" id="deadlineBadge" style="display:none">0</span>
+      </a>
+
+      <div class="nav-section">知识工具</div>
+      <a class="nav-item" href="#/laws" data-route="/laws" onclick="navigate(this)">
+        <span class="nav-icon">&#128214;</span> 法规速查
+      </a>
+      <a class="nav-item" href="#/compensation" data-route="/compensation" onclick="navigate(this)">
+        <span class="nav-icon">&#128176;</span> 赔偿计算
+      </a>
+      <a class="nav-item" href="#/reports" data-route="/reports" onclick="navigate(this)">
+        <span class="nav-icon">&#128196;</span> 报告工作台
+      </a>
+
+      <div class="nav-section">系统</div>
+      <a class="nav-item" href="#/settings" data-route="/settings" onclick="navigate(this)">
+        <span class="nav-icon">&#9881;</span> 设置
+      </a>
+      <a class="nav-item" href="index.html" style="margin-top:8px;color:var(--text-muted);font-size:13px;">
+        <span class="nav-icon">&#8592;</span> 返回门户首页
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="theme-toggle" id="themeToggle" title="切换主题" style="width:36px;height:36px;font-size:16px;">&#9790;</button>
+      <span style="font-size:12px;color:var(--text-muted);">法规版本：2026-06-26</span>
+    </div>
+  </aside>
+
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- ===== Main Content ===== -->
+  <div class="main-content">
+
+    <!-- Header -->
+    <header class="main-header">
+      <button class="mobile-toggle" onclick="toggleSidebar()">&#9776;</button>
+      <span class="page-title" id="pageTitle">仪表盘</span>
+      <div class="header-actions">
+        <button class="btn btn-sm btn-secondary" onclick="exportAllData()" title="导出所有案件数据">&#128229; 导出数据</button>
+        <label class="btn btn-sm btn-primary" style="cursor:pointer;" title="导入问询单JSON">
+          &#128228; 导入问询单
+          <input type="file" accept=".json" multiple style="display:none" onchange="importQuestionnaire(this.files)">
+        </label>
+      </div>
+    </header>
+
+    <!-- ===== Dashboard View ===== -->
+    <div class="main-body view active" id="view-dashboard">
+      <div class="stat-grid" id="statGrid">
+        <div class="stat-card">
+          <div class="stat-icon blue">&#128194;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">全部案件</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon yellow">&#128221;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statIntake">0</div>
+            <div class="stat-label">接谈中</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon purple">&#9878;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statFiling">0</div>
+            <div class="stat-label">已立案</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">&#9200;</div>
+          <div class="stat-info">
+            <div class="stat-value" id="statUrgent">0</div>
+            <div class="stat-label">临期预警</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Cases -->
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-header">
+          <span class="card-title">最近案件</span>
+          <a href="#/cases" class="btn btn-sm btn-ghost" onclick="navigate(document.querySelector('[data-route=/cases]'))">查看全部 &rarr;</a>
+        </div>
+        <div id="recentCases" class="case-grid">
+          <div class="empty-state">
+            <div class="empty-icon">&#128194;</div>
+            <div class="empty-text">暂无案件，导入问询单开始使用</div>
+            <label class="btn btn-primary" style="cursor:pointer;">
+              导入问询单 JSON
+              <input type="file" accept=".json" style="display:none" onchange="importQuestionnaire(this.files)">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upcoming Deadlines -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">&#9200; 近期期限</span>
+          <a href="#/deadlines" class="btn btn-sm btn-ghost" onclick="navigate(document.querySelector('[data-route=/deadlines]'))">查看全部 &rarr;</a>
+        </div>
+        <div id="recentDeadlines" class="deadline-list">
+          <div class="empty-state" style="padding:24px;">
+            <div class="empty-text" style="font-size:13px;">导入案件后自动计算关键期限</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Cases View ===== -->
+    <div class="main-body view" id="view-cases">
+      <div class="filter-tabs" id="caseFilters">
+        <button class="filter-tab active" onclick="filterCases('all', this)">全部</button>
+        <button class="filter-tab" onclick="filterCases('intake', this)">接谈中</button>
+        <button class="filter-tab" onclick="filterCases('filing', this)">已立案</button>
+        <button class="filter-tab" onclick="filterCases('trial', this)">庭审中</button>
+        <button class="filter-tab" onclick="filterCases('closed', this)">已结案</button>
+      </div>
+      <div id="caseList" class="case-grid"></div>
+    </div>
+
+    <!-- ===== Deadlines View ===== -->
+    <div class="main-body view" id="view-deadlines">
+      <div class="filter-tabs" id="deadlineFilters">
+        <button class="filter-tab active" onclick="filterDeadlines('all', this)">全部</button>
+        <button class="filter-tab" onclick="filterDeadlines('danger', this)">&#128308; 紧急</button>
+        <button class="filter-tab" onclick="filterDeadlines('warn', this)">&#128992; 临期</button>
+        <button class="filter-tab" onclick="filterDeadlines('safe', this)">&#128994; 安全</button>
+      </div>
+      <div id="deadlineList" class="deadline-list"></div>
+    </div>
+
+    <!-- ===== Laws View ===== -->
+    <div class="main-body view" id="view-laws">
+      <div style="margin-bottom:20px;">
+        <div class="search-input" style="max-width:400px;">
+          <span class="search-icon">&#128269;</span>
+          <input class="input" type="text" placeholder="搜索法规名称、条文、关键词..." id="lawSearch" oninput="searchLaws(this.value)">
+        </div>
+      </div>
+      <div class="filter-tabs" style="margin-bottom:20px;">
+        <button class="filter-tab active" onclick="filterLaws('all', this)">全部</button>
+        <button class="filter-tab" onclick="filterLaws('法律', this)">法律</button>
+        <button class="filter-tab" onclick="filterLaws('司法解释', this)">司法解释</button>
+        <button class="filter-tab" onclick="filterLaws('行政法规', this)">行政法规</button>
+        <button class="filter-tab" onclick="filterLaws('赔偿标准', this)">赔偿标准</button>
+        <button class="filter-tab" onclick="filterLaws('裁判观点', this)">裁判观点</button>
+      </div>
+      <div id="lawList"></div>
+    </div>
+
+    <!-- ===== Compensation Calculator View ===== -->
+    <div class="main-body view" id="view-compensation">
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-title" style="margin-bottom:16px;">赔偿项目速查</div>
+        <div class="table-wrapper">
+          <table class="table" id="compTable">
+            <thead>
+              <tr><th>序号</th><th>赔偿项目</th><th>计算公式</th><th>说明</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-title" style="margin-bottom:16px;">诉讼费速算</div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead><tr><th>标的金额区间</th><th>速算公式</th></tr></thead>
+            <tbody id="feeTable"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:12px;align-items:end;">
+          <div style="flex:1;">
+            <label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:4px;">输入标的金额（元）</label>
+            <input class="input" type="number" id="feeInput" placeholder="例：500000" oninput="calcCourtFee(this.value)">
+          </div>
+          <div style="min-width:160px;padding:8px 16px;background:var(--primary-light);border-radius:var(--radius);font-size:18px;font-weight:700;color:var(--primary);" id="feeResult">—</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:16px;">辽宁省赔偿标准（2024年度）</div>
+        <div id="compStandards"></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">
+          数据来源：辽宁省统计局 &middot; 自2020年1月1日起城乡统一标准
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Reports View ===== -->
+    <div class="main-body view" id="view-reports">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px;">&#128196; 生成接谈报告</div>
+          <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">
+            选择已导入的案件，基于问询数据生成结构化接谈分析报告。
+          </p>
+          <div style="margin-bottom:16px;">
+            <label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:4px;">选择案件</label>
+            <select class="select" id="reportCaseSelect">
+              <option value="">— 请选择案件 —</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="generateReport('interview')">生成接谈分析报告</button>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:16px;">&#128218; 生成立案指引</div>
+          <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">
+            选择已导入的案件，核查证据完整性并输出立案准备指引。
+          </p>
+          <div style="margin-bottom:16px;">
+            <label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:4px;">选择案件</label>
+            <select class="select" id="filingCaseSelect">
+              <option value="">— 请选择案件 —</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="generateReport('filing')">生成立案准备指引</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:24px;">
+        <div class="card-title" style="margin-bottom:16px;">报告输出区</div>
+        <div id="reportOutput">
+          <div class="empty-state" style="padding:32px;">
+            <div class="empty-icon">&#128196;</div>
+            <div class="empty-text">选择案件并点击生成按钮，报告将在此处显示</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:8px;">
+              提示：完整的报告生成需要 QoderWork 后端支持。此处可预览模板结构并导出数据供 QoderWork 处理。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Settings View ===== -->
+    <div class="main-body view" id="view-settings">
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-title" style="margin-bottom:16px;">数据管理</div>
+        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">
+          所有案件数据存储在浏览器本地。支持导入/导出 JSON 格式。
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="exportAllData()">&#128229; 导出全部案件（JSON）</button>
+          <label class="btn btn-secondary" style="cursor:pointer;">
+            &#128228; 导入问询单 JSON
+            <input type="file" accept=".json" multiple style="display:none" onchange="importQuestionnaire(this.files)">
+          </label>
+          <button class="btn btn-danger" onclick="clearAllData()">&#128465; 清空全部数据</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:24px;">
+        <div class="card-title" style="margin-bottom:16px;">团队信息配置</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:4px;">律所名称</label>
+            <input class="input" type="text" id="cfgFirmName" placeholder="例：辽宁XX律师事务所">
+          </div>
+          <div>
+            <label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:4px;">团队名称</label>
+            <input class="input" type="text" id="cfgTeamName" placeholder="例：滕丹丹侵权事务团队">
+          </div>
+          <div>
+            <label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:4px;">联络人</label>
+            <input class="input" type="text" id="cfgContact" placeholder="例：李助理">
+          </div>
+          <div>
+            <label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:4px;">联系电话/微信</label>
+            <input class="input" type="text" id="cfgPhone" placeholder="例：13800138000">
+          </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:16px;" onclick="saveTeamConfig()">保存配置</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:16px;">关于</div>
+        <div style="font-size:14px;color:var(--text-secondary);line-height:1.8;">
+          <p>交通事故接案中心 — 团队工作台 v1.0</p>
+          <p>技能版本：traffic-accident-intake</p>
+          <p>法律依据版本：2026-06-26</p>
+          <p>部署方式：Cloudflare Pages 静态站点</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
