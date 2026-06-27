@@ -1773,6 +1773,12 @@
     document.querySelectorAll('.field-error').forEach(function(el) { el.classList.remove('field-error'); });
     document.querySelectorAll('.field-error-msg').forEach(function(el) { el.remove(); });
 
+    // Sync all composite date inputs before validation
+    document.querySelectorAll('.composite-date-input').forEach(function(wrapper) {
+      var subField = wrapper.querySelector('.cdi-year') || wrapper.querySelector('.cdi-month') || wrapper.querySelector('.cdi-day');
+      if (subField) syncCompositeDate(subField);
+    });
+
     var requiredFields = form.querySelectorAll('[required]');
     var allValid = true, firstInvalid = null;
 
@@ -1842,7 +1848,35 @@
 
     if (!allValid) {
       if (firstInvalid) firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      alert('请完成所有必填项（标有 * 的项目）并修正错误后再提交。');
+      // Collect missing field names for debugging
+      var missingFields = [];
+      var seenRadioGroups = {};
+      requiredFields.forEach(function(field) {
+        if (field.type === 'radio') {
+          var group = form.querySelectorAll('[name="' + field.name + '"]:checked');
+          if (group.length === 0 && !seenRadioGroups[field.name]) {
+            seenRadioGroups[field.name] = true;
+            var lbl = field.closest('.check-group');
+            if (lbl) { var sec = lbl.closest('.section'); if (sec) { var t = sec.querySelector('.section-title'); if (t) missingFields.push(t.textContent.replace(/必填/g, '').trim()); } }
+          }
+        } else if (field.type === 'checkbox') {
+          var checkedGroup = form.querySelectorAll('[name="' + field.name + '"]:checked');
+          if (checkedGroup.length === 0) {
+            var lbl2 = field.closest('.check-group');
+            if (lbl2) { var sec2 = lbl2.closest('.section'); if (sec2) { var t2 = sec2.querySelector('.section-title'); if (t2) missingFields.push(t2.textContent.replace(/必填/g, '').trim()); } }
+          }
+        } else if (!field.value || field.value.trim() === '') {
+          var label = '';
+          var lbl3 = field.closest('.composite-date-input') || field;
+          var fg = lbl3.closest('.form-group');
+          if (fg) { var l = fg.querySelector('label'); if (l) label = l.textContent.replace('*', '').trim(); }
+          if (!label && field.name) label = field.name;
+          if (label) missingFields.push(label);
+        }
+      });
+      var msg = '请完成所有必填项（标有 * 的项目）并修正错误后再提交。';
+      if (missingFields.length > 0) msg += '\n\n未完成：' + missingFields.join('、');
+      alert(msg);
       return;
     }
 
