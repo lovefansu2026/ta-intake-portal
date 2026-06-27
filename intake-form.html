@@ -130,16 +130,35 @@
   .form-group { display: flex; flex-direction: column; }
   .form-group label { font-size: 13px; font-weight: 500; color: var(--seed-muted); margin-bottom: 4px; }
   .form-group label .star { color: var(--seed-accent); margin-right: 2px; }
-  input[type="text"], input[type="tel"], input[type="date"], input[type="number"],
+  input[type="text"], input[type="tel"], input[type="number"],
   input[type="time"], select, textarea {
     width: 100%; padding: 8px 12px; border: 1px solid var(--seed-border);
     border-radius: 6px; font-size: 14px; font-family: inherit;
     transition: border-color 0.2s, box-shadow 0.2s; background: var(--seed-surface);
   }
-  input[type="date"] { min-width: 160px; }
-  input[type="date"]::-webkit-datetime-edit-year-field { min-width: 3.6em; text-align: left; padding-right: 2px; }
-  input[type="date"]::-webkit-datetime-edit-month-field { min-width: 2em; }
-  input[type="date"]::-webkit-datetime-edit-day-field { min-width: 2em; }
+  /* ===== Composite Date Input ===== */
+  .composite-date-input {
+    display: inline-flex; align-items: center; gap: 2px;
+    border: 1px solid var(--seed-border); border-radius: 6px;
+    padding: 4px 8px; background: var(--seed-surface);
+    transition: border-color 0.2s, box-shadow 0.2s; width: 100%; max-width: 220px;
+  }
+  .composite-date-input:focus-within {
+    border-color: var(--seed-primary); box-shadow: 0 0 0 3px rgba(74,140,111,0.12);
+  }
+  .composite-date-input input.cdi-year,
+  .composite-date-input input.cdi-month,
+  .composite-date-input input.cdi-day {
+    border: none; padding: 4px 2px; font-size: 14px; font-family: inherit;
+    text-align: center; background: transparent; outline: none; width: auto;
+  }
+  .composite-date-input input.cdi-year { width: 4em; }
+  .composite-date-input input.cdi-month,
+  .composite-date-input input.cdi-day { width: 2.2em; }
+  .composite-date-input .cdi-sep { color: var(--seed-muted); font-size: 14px; user-select: none; line-height: 1; }
+  .composite-date-input.cdi-readonly { background: #f4f7f4; pointer-events: none; }
+  .composite-date-input.cdi-readonly input { color: var(--seed-muted); }
+  .composite-date-input.field-error { border-color: var(--seed-accent) !important; box-shadow: 0 0 0 3px rgba(192,83,77,0.15) !important; }
   input:focus, select:focus, textarea:focus {
     outline: none; border-color: var(--seed-primary);
     box-shadow: 0 0 0 3px rgba(74,140,111,0.12);
@@ -410,9 +429,10 @@
   body.variant-b .notice { border-radius: 0 14px 14px 0; background: #fdf5e6; border-left-color: #d4a84a; }
   body.variant-b .risk-warning { border-radius: 14px; background: #fdf0ec; border-color: #e8cdc4; }
   body.variant-b input[type="text"], body.variant-b input[type="tel"],
-  body.variant-b input[type="date"], body.variant-b input[type="number"],
+  body.variant-b input[type="number"],
   body.variant-b input[type="time"], body.variant-b select, body.variant-b textarea { border-radius: 10px; padding: 10px 14px; }
   body.variant-b input:focus, body.variant-b select:focus, body.variant-b textarea:focus { box-shadow: 0 0 0 3px rgba(192,139,92,0.12); border-color: #c08b5c; }
+  body.variant-b .composite-date-input { border-radius: 10px; padding: 6px 10px; }
   body.variant-b .progress-bar { border-radius: 0; }
   body.variant-b .progress-fill { background: #c08b5c; }
   body.variant-b .section-title .num { border-radius: 50%; background: #c08b5c; }
@@ -461,9 +481,10 @@
   body.variant-c .notice { border-radius: 0 4px 4px 0; font-size: 13px; padding: 12px 16px; background: #f5f0d8; border-left-color: #b8860b; }
   body.variant-c .risk-warning { border-radius: 4px; background: #faf0f0; border-color: #dcc8c8; }
   body.variant-c input[type="text"], body.variant-c input[type="tel"],
-  body.variant-c input[type="date"], body.variant-c input[type="number"],
+  body.variant-c input[type="number"],
   body.variant-c input[type="time"], body.variant-c select, body.variant-c textarea { border-radius: 4px; padding: 6px 10px; font-size: 13px; }
   body.variant-c input:focus, body.variant-c select:focus, body.variant-c textarea:focus { box-shadow: 0 0 0 2px rgba(45,58,140,0.12); border-color: #2d3a8c; }
+  body.variant-c .composite-date-input { border-radius: 4px; padding: 3px 6px; }
   body.variant-c .form-row { gap: 8px 12px; margin-bottom: 8px; }
   body.variant-c .progress-fill { background: #2d3a8c; }
   body.variant-c .section-title .num { background: #2d3a8c; border-radius: 4px; width: 22px; height: 22px; font-size: 12px; }
@@ -577,7 +598,7 @@
         <div class="form-group"><label>性别</label><select name="gender"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>出生日期</label><input type="date" name="birthdate"></div>
+        <div class="form-group"><label>出生日期</label><div class="composite-date-input"><input type="text" class="cdi-year" maxlength="4" placeholder="YYYY" inputmode="numeric"><span class="cdi-sep">-</span><input type="text" class="cdi-month" maxlength="2" placeholder="MM" inputmode="numeric"><span class="cdi-sep">-</span><input type="text" class="cdi-day" maxlength="2" placeholder="DD" inputmode="numeric"><input type="hidden" name="birthdate"></div></div>
         <div class="form-group"><label>身份证号</label><input type="text" name="idcard" placeholder="18位身份证号" maxlength="18"></div>
       </div>
       <div class="form-row">
@@ -632,7 +653,7 @@
     <div class="section">
       <div class="section-title"><span class="num">2</span>事故核心信息<span class="required-badge">必填</span></div>
       <div class="form-row">
-        <div class="form-group"><label><span class="star">*</span>事故发生日期</label><input type="date" name="accident_date" required></div>
+        <div class="form-group"><label><span class="star">*</span>事故发生日期</label><div class="composite-date-input" data-required="true"><input type="text" class="cdi-year" maxlength="4" placeholder="YYYY" inputmode="numeric"><span class="cdi-sep">-</span><input type="text" class="cdi-month" maxlength="2" placeholder="MM" inputmode="numeric"><span class="cdi-sep">-</span><input type="text" class="cdi-day" maxlength="2" placeholder="DD" inputmode="numeric"><input type="hidden" name="accident_date" required></div></div>
         <div class="form-group"><label>事故发生时间</label><input type="time" name="accident_time"></div>
       </div>
       <div class="form-row single"><div class="form-group"><label><span class="star">*</span>事故地点</label><input type="text" name="accident_location" required placeholder="例：辽宁省沈阳市和平区XX路XX号路口"></div></div>
@@ -1108,6 +1129,131 @@
     return '剩余' + days + '天';
   }
 
+  // ===== Composite Date Input Utilities =====
+  function createDateInput(name, value, attrs) {
+    attrs = attrs || {};
+    var y = '', m = '', d = '';
+    if (value) {
+      var p = value.split('-');
+      if (p.length === 3) { y = p[0]; m = p[1]; d = p[2]; }
+    }
+    var ro = attrs.readonly ? ' readonly' : '';
+    var roClass = attrs.readonly ? ' cdi-readonly' : '';
+    var req = attrs.required ? ' data-required="true"' : '';
+    var cb = attrs.onchange ? ' data-cb="' + attrs.onchange + '"' : '';
+    return '<div class="composite-date-input' + roClass + '"' + cb + req + '>' +
+      '<input type="text" class="cdi-year" maxlength="4" placeholder="YYYY" inputmode="numeric" value="' + y + '"' + ro + '>' +
+      '<span class="cdi-sep">-</span>' +
+      '<input type="text" class="cdi-month" maxlength="2" placeholder="MM" inputmode="numeric" value="' + m + '"' + ro + '>' +
+      '<span class="cdi-sep">-</span>' +
+      '<input type="text" class="cdi-day" maxlength="2" placeholder="DD" inputmode="numeric" value="' + d + '"' + ro + '>' +
+      '<input type="hidden" name="' + name + '" value="' + (value || '') + '">' +
+    '</div>';
+  }
+
+  function setCompositeDate(hiddenEl, value) {
+    if (!hiddenEl) return;
+    hiddenEl.value = value || '';
+    var wrapper = hiddenEl.closest('.composite-date-input');
+    if (!wrapper) return;
+    var yI = wrapper.querySelector('.cdi-year');
+    var mI = wrapper.querySelector('.cdi-month');
+    var dI = wrapper.querySelector('.cdi-day');
+    if (value) {
+      var parts = value.split('-');
+      if (parts.length === 3) {
+        if (yI) yI.value = parts[0];
+        if (mI) mI.value = parts[1];
+        if (dI) dI.value = parts[2];
+      }
+    } else {
+      if (yI) yI.value = '';
+      if (mI) mI.value = '';
+      if (dI) dI.value = '';
+    }
+    hiddenEl.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function setCompositeReadonly(hiddenEl, isReadonly) {
+    var wrapper = hiddenEl.closest('.composite-date-input');
+    if (!wrapper) return;
+    wrapper.classList.toggle('cdi-readonly', isReadonly);
+    wrapper.querySelectorAll('input.cdi-year, input.cdi-month, input.cdi-day').forEach(function(inp) {
+      inp.readOnly = isReadonly;
+    });
+  }
+
+  function syncCompositeDate(subField) {
+    var wrapper = subField.closest('.composite-date-input');
+    if (!wrapper) return;
+    var hidden = wrapper.querySelector('input[type="hidden"]');
+    if (!hidden) return;
+    var y = (wrapper.querySelector('.cdi-year') || {}).value || '';
+    var m = (wrapper.querySelector('.cdi-month') || {}).value || '';
+    var d = (wrapper.querySelector('.cdi-day') || {}).value || '';
+    if (y.length === 4 && m.length >= 1 && d.length >= 1) {
+      hidden.value = y + '-' + m.padStart(2, '0') + '-' + d.padStart(2, '0');
+    } else if (y.length === 4 && m.length >= 1) {
+      hidden.value = y + '-' + m.padStart(2, '0') + '-01';
+    } else if (y.length === 4) {
+      hidden.value = y + '-01-01';
+    } else {
+      hidden.value = '';
+    }
+  }
+
+  function initCompositeDateHandlers() {
+    var form = document.getElementById('questionnaireForm');
+    if (!form) return;
+
+    // Numeric-only filtering + sync
+    form.addEventListener('input', function(e) {
+      var t = e.target;
+      if (!t.classList.contains('cdi-year') && !t.classList.contains('cdi-month') && !t.classList.contains('cdi-day')) return;
+      t.value = t.value.replace(/\D/g, '');
+      syncCompositeDate(t);
+    });
+
+    // Auto-tab on field completion
+    form.addEventListener('input', function(e) {
+      var t = e.target;
+      if (t.classList.contains('cdi-year') && t.value.length === 4) {
+        var next = t.parentElement.querySelector('.cdi-month');
+        if (next) next.focus();
+      } else if (t.classList.contains('cdi-month') && t.value.length === 2) {
+        var day = t.parentElement.querySelector('.cdi-day');
+        if (day) day.focus();
+      }
+    });
+
+    // Backspace navigation: empty field → go to previous
+    form.addEventListener('keydown', function(e) {
+      var t = e.target;
+      if (e.key !== 'Backspace' || t.value !== '') return;
+      if (t.classList.contains('cdi-day')) {
+        var prev = t.parentElement.querySelector('.cdi-month');
+        if (prev) prev.focus();
+      } else if (t.classList.contains('cdi-month')) {
+        var prev2 = t.parentElement.querySelector('.cdi-year');
+        if (prev2) prev2.focus();
+      }
+    });
+
+    // Blur: finalize + trigger callback
+    form.addEventListener('blur', function(e) {
+      var t = e.target;
+      if (!t.classList.contains('cdi-year') && !t.classList.contains('cdi-month') && !t.classList.contains('cdi-day')) return;
+      syncCompositeDate(t);
+      var wrapper = t.closest('.composite-date-input');
+      if (wrapper && wrapper.dataset.cb) {
+        var match = wrapper.dataset.cb.match(/^(\w+)\((\d+)\)$/);
+        if (match && typeof window[match[1]] === 'function') {
+          window[match[1]](parseInt(match[2]));
+        }
+      }
+    }, true);
+  }
+
   function calculateDeadlines(formData) {
     var accidentDateStr = formData.get('accident_date');
     var recovery = formData.get('recovery_1') || '';
@@ -1276,7 +1422,7 @@
           '<div style="display:flex;gap:6px;align-items:center;">' +
             '<input type="number" name="age_' + index + '" min="0" max="150" placeholder="年龄" style="width:80px;flex:none;" oninput="calcBirthFromAge(' + index + ')">' +
             '<span style="color:var(--seed-muted);font-size:12px;">或</span>' +
-            '<input type="date" name="birthdate_' + index + '" onchange="calcAgeFromBirth(' + index + ')">' +
+            createDateInput('birthdate_' + index, '', { onchange: 'calcAgeFromBirth(' + index + ')' }) +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -1287,7 +1433,7 @@
           '<div class="form-group"><label><span class="star">*</span>首次就诊医院</label><input type="text" name="hospital_' + index + '" required placeholder="医院名称"></div>' +
         '</div>' +
         '<div class="form-row">' +
-          '<div class="form-group"><label><span class="star">*</span>初诊日期</label><input type="date" name="first_visit_date_' + index + '" required value="' + todayStr + '"></div>' +
+          '<div class="form-group"><label><span class="star">*</span>初诊日期</label>' + createDateInput('first_visit_date_' + index, todayStr, { required: true }) + '</div>' +
           '<div class="form-group"><label><span class="star">*</span>主要诊断</label><input type="text" name="diagnosis_' + index + '" required placeholder="医院诊断结果简述"></div>' +
         '</div>' +
         '<div class="form-row">' +
@@ -1299,11 +1445,11 @@
           '</div>' +
         '</div>' +
         '<div class="form-row hosp-detail-' + index + '" style="display:none">' +
-          '<div class="form-group"><label>入院日期</label><input type="date" name="hosp_start_' + index + '" value="' + todayStr + '" onchange="calcDischargeDate(' + index + ')"></div>' +
+          '<div class="form-group"><label>入院日期</label>' + createDateInput('hosp_start_' + index, todayStr, { onchange: 'calcDischargeDate(' + index + ')' }) + '</div>' +
           '<div class="form-group"><label>住院天数</label><input type="number" name="hosp_days_' + index + '" min="0" max="999" placeholder="可选" onchange="calcDischargeDate(' + index + ')" oninput="calcDischargeDate(' + index + ')"></div>' +
         '</div>' +
         '<div class="form-row hosp-detail-' + index + '" style="display:none">' +
-          '<div class="form-group"><label>出院日期（自动计算）</label><input type="date" name="hosp_end_' + index + '" readonly style="background:#f4f7f4;"></div>' +
+          '<div class="form-group"><label>出院日期（自动计算）</label>' + createDateInput('hosp_end_' + index, '', { readonly: true }) + '</div>' +
           '<div class="form-group"></div>' +
         '</div>' +
         '<div class="form-row">' +
@@ -1333,7 +1479,7 @@
       '<div class="death-fields death-fields-' + index + '" style="display:none">' +
         '<div class="death-label">&#9760; 死亡信息</div>' +
         '<div class="form-row">' +
-          '<div class="form-group"><label>死亡日期</label><input type="date" name="death_date_' + index + '"></div>' +
+          '<div class="form-group"><label>死亡日期</label>' + createDateInput('death_date_' + index, '') + '</div>' +
           '<div class="form-group"><label>死亡原因</label>' +
             '<select name="death_cause_' + index + '">' +
               '<option value="">请选择</option>' +
@@ -1422,7 +1568,7 @@
       var days = parseInt(daysInput.value) || 0;
       var endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + days);
-      endInput.value = endDate.toISOString().split('T')[0];
+      setCompositeDate(endInput, endDate.toISOString().split('T')[0]);
     }
   }
 
@@ -1464,9 +1610,8 @@
         nameInput.style.background = '#f4f7f4';
       }
       if (birthInput && partyBirth && partyBirth.value) {
-        birthInput.value = partyBirth.value;
-        birthInput.readOnly = true;
-        birthInput.style.background = '#f4f7f4';
+        setCompositeDate(birthInput, partyBirth.value);
+        setCompositeReadonly(birthInput, true);
         // Calculate age from birthdate
         if (ageInput) {
           var bd = new Date(partyBirth.value);
@@ -1482,7 +1627,7 @@
     } else {
       // Clear and make editable
       if (nameInput) { nameInput.value = ''; nameInput.readOnly = false; nameInput.style.background = ''; }
-      if (birthInput) { birthInput.value = ''; birthInput.readOnly = false; birthInput.style.background = ''; }
+      if (birthInput) { setCompositeDate(birthInput, ''); setCompositeReadonly(birthInput, false); }
       if (ageInput) { ageInput.value = ''; ageInput.readOnly = false; ageInput.style.background = ''; }
     }
     updateProgress();
@@ -1509,7 +1654,7 @@
       if (!isNaN(age) && age >= 0) {
         var today = new Date();
         var birthYear = today.getFullYear() - age;
-        birthInput.value = birthYear + '-01-01';
+        setCompositeDate(birthInput, birthYear + '-01-01');
       }
     }
   }
@@ -1546,18 +1691,28 @@
   }
 
   function showFieldError(input, msg) {
-    input.classList.add('field-error');
-    var existing = input.parentNode.querySelector('.field-error-msg');
+    var target = input;
+    if (input.type === 'hidden') {
+      var wrapper = input.closest('.composite-date-input');
+      if (wrapper) target = wrapper;
+    }
+    target.classList.add('field-error');
+    var existing = target.parentNode.querySelector('.field-error-msg');
     if (existing) existing.remove();
     var errDiv = document.createElement('div');
     errDiv.className = 'field-error-msg';
     errDiv.textContent = msg;
-    input.parentNode.appendChild(errDiv);
+    target.parentNode.appendChild(errDiv);
   }
 
   function clearFieldError(input) {
-    input.classList.remove('field-error');
-    var existing = input.parentNode.querySelector('.field-error-msg');
+    var target = input;
+    if (input.type === 'hidden') {
+      var wrapper = input.closest('.composite-date-input');
+      if (wrapper) target = wrapper;
+    }
+    target.classList.remove('field-error');
+    var existing = target.parentNode.querySelector('.field-error-msg');
     if (existing) existing.remove();
   }
 
@@ -1566,7 +1721,7 @@
     var todayStr = new Date().toISOString().split('T')[0];
     // Set accident_date default to today
     var accidentDate = document.querySelector('[name="accident_date"]');
-    if (accidentDate && !accidentDate.value) accidentDate.value = todayStr;
+    if (accidentDate && !accidentDate.value) setCompositeDate(accidentDate, todayStr);
     // Birthdate and first_visit_date defaults are set in injury block creation
   }
 
@@ -1628,10 +1783,20 @@
         }
       } else if (!field.value || field.value.trim() === '') {
         allValid = false;
-        field.classList.add('field-error');
-        if (!firstInvalid) firstInvalid = field;
+        var errTarget = field;
+        if (field.type === 'hidden') {
+          var wrapper = field.closest('.composite-date-input');
+          if (wrapper) errTarget = wrapper;
+        }
+        errTarget.classList.add('field-error');
+        if (!firstInvalid) firstInvalid = errTarget;
       } else {
-        field.classList.remove('field-error');
+        var clearTarget = field;
+        if (field.type === 'hidden') {
+          var wrapper2 = field.closest('.composite-date-input');
+          if (wrapper2) clearTarget = wrapper2;
+        }
+        clearTarget.classList.remove('field-error');
       }
     });
 
@@ -1654,20 +1819,6 @@
         if (!firstInvalid) firstInvalid = voIdcardInput;
       }
     }
-
-    // Date year correction: fix years < 100 (e.g., 89 → 1989, 24 → 2024)
-    document.querySelectorAll('input[type="date"]').forEach(function(dateInput) {
-      if (dateInput.value) {
-        var parts = dateInput.value.split('-');
-        if (parts.length === 3) {
-          var year = parseInt(parts[0]);
-          if (year > 0 && year < 100) {
-            parts[0] = String(year > 50 ? 1900 + year : 2000 + year);
-            dateInput.value = parts.join('-');
-          }
-        }
-      }
-    });
 
     // Date cross-validation
     var dateErrors = validateDates();
@@ -1901,21 +2052,8 @@
       });
     });
   }
-  // ===== Real-time date year fix =====
-  // Fix year display when user finishes typing in a date field
-  // Heuristic: 2-digit year > 50 → 19xx, ≤ 50 → 20xx
-  document.addEventListener('blur', function(e) {
-    if (e.target && e.target.type === 'date' && e.target.value) {
-      var parts = e.target.value.split('-');
-      if (parts.length === 3) {
-        var year = parseInt(parts[0]);
-        if (year > 0 && year < 100) {
-          parts[0] = String(year > 50 ? 1900 + year : 2000 + year);
-          e.target.value = parts.join('-');
-        }
-      }
-    }
-  }, true);
+  // ===== Init composite date handlers =====
+  initCompositeDateHandlers();
 
   updateProgress();
 </script>
