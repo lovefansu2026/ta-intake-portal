@@ -926,16 +926,11 @@
       <div class="form-row single"><div class="form-group"><label>与当事人关系</label><input type="text" name="filler_relation" placeholder="例：本人 / 配偶 / 子女 / 朋友"></div></div>
     </div>
 
-    <!-- 底部提交按钮 -->
-    <div class="btn-group no-print" style="justify-content:center; margin-top:20px;">
-      <button type="button" class="btn btn-primary" onclick="submitForm()" style="min-width:220px; font-size:16px; padding:14px 36px;">&#10003; 提交问询单</button>
-    </div>
-
-    <!-- 按钮 -->
+    <!-- 底部操作按钮 -->
     <div class="btn-group no-print">
       <button type="button" class="btn btn-secondary" onclick="clearForm()">清空重填</button>
-      <button type="button" class="btn btn-primary" onclick="submitForm()" style="flex:2;">&#10003; 提交问询单</button>
-      <button type="button" class="btn btn-secondary" onclick="window.print()">导出PDF回传</button>
+      <button type="button" class="btn btn-primary" onclick="submitForm()" style="flex:2;">&#10003; 下载JSON文件</button>
+      <button type="button" class="btn btn-secondary" onclick="window.print()">打印、导出PDF文件</button>
     </div>
 
   </form>
