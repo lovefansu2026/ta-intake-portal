@@ -70,7 +70,6 @@
       <button class="mobile-toggle" onclick="toggleSidebar()">&#9776;</button>
       <span class="page-title" id="pageTitle">仪表盘</span>
       <div class="header-actions">
-        <button class="btn btn-sm btn-secondary" onclick="syncFromAPI()" title="从 API 同步新提交的问询单">&#128260; 同步数据</button>
         <button class="btn btn-sm btn-secondary" onclick="exportAllData()" title="导出所有案件数据">&#128229; 导出数据</button>
         <label class="btn btn-sm btn-primary" style="cursor:pointer;" title="导入问询单JSON">
           &#128228; 导入问询单
@@ -150,6 +149,7 @@
         <button class="filter-tab active" onclick="filterCases('all', this)">全部</button>
         <button class="filter-tab" onclick="filterCases('intake', this)">接谈中</button>
         <button class="filter-tab" onclick="filterCases('filing', this)">已立案</button>
+        <button class="filter-tab" onclick="filterCases('appraisal', this)">鉴定中</button>
         <button class="filter-tab" onclick="filterCases('trial', this)">庭审中</button>
         <button class="filter-tab" onclick="filterCases('closed', this)">已结案</button>
       </div>
@@ -326,6 +326,33 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Case Detail Modal -->
+<div id="caseDetailModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;">
+  <div onclick="closeCaseDetail()" style="position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);"></div>
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surface);border-radius:12px;width:90%;max-width:720px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1;border-radius:12px 12px 0 0;">
+      <h3 id="caseDetailTitle" style="font-size:18px;font-weight:600;margin:0;">案件详情</h3>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-sm btn-ghost" onclick="toggleCaseEdit()" id="caseEditToggle" title="编辑">&#9998; 编辑</button>
+        <button class="btn btn-sm btn-ghost" onclick="closeCaseDetail()" style="font-size:18px;">&times;</button>
+      </div>
+    </div>
+    <div id="caseDetailContent" style="padding:24px;"></div>
+    <div id="caseEditPanel" style="display:none;padding:24px;border-top:1px solid var(--border);">
+      <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">补充/修改案件信息</h4>
+      <div id="caseEditForm"></div>
+      <div style="margin-top:16px;">
+        <h4 style="font-size:15px;font-weight:600;margin-bottom:12px;">添加跟进记录</h4>
+        <textarea id="caseNoteInput" placeholder="记录面谈、通话、新情况等..." style="width:100%;min-height:80px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;background:var(--bg);color:var(--text-primary);"></textarea>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn btn-primary" onclick="saveCaseEdit()">保存修改</button>
+          <button class="btn btn-ghost" onclick="toggleCaseEdit()">取消</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 

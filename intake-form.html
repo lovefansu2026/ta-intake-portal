@@ -137,6 +137,9 @@
     transition: border-color 0.2s, box-shadow 0.2s; background: var(--seed-surface);
   }
   input[type="date"] { min-width: 160px; }
+  input[type="date"]::-webkit-datetime-edit-year-field { min-width: 3.6em; text-align: left; padding-right: 2px; }
+  input[type="date"]::-webkit-datetime-edit-month-field { min-width: 2em; }
+  input[type="date"]::-webkit-datetime-edit-day-field { min-width: 2em; }
   input:focus, select:focus, textarea:focus {
     outline: none; border-color: var(--seed-primary);
     box-shadow: 0 0 0 3px rgba(74,140,111,0.12);
@@ -1652,14 +1655,14 @@
       }
     }
 
-    // Date year correction: fix years < 100 (e.g., 23 → 2023)
+    // Date year correction: fix years < 100 (e.g., 89 → 1989, 24 → 2024)
     document.querySelectorAll('input[type="date"]').forEach(function(dateInput) {
       if (dateInput.value) {
         var parts = dateInput.value.split('-');
         if (parts.length === 3) {
           var year = parseInt(parts[0]);
           if (year > 0 && year < 100) {
-            parts[0] = String(year + 2000);
+            parts[0] = String(year > 50 ? 1900 + year : 2000 + year);
             dateInput.value = parts.join('-');
           }
         }
@@ -1898,6 +1901,22 @@
       });
     });
   }
+  // ===== Real-time date year fix =====
+  // Fix year display when user finishes typing in a date field
+  // Heuristic: 2-digit year > 50 → 19xx, ≤ 50 → 20xx
+  document.addEventListener('blur', function(e) {
+    if (e.target && e.target.type === 'date' && e.target.value) {
+      var parts = e.target.value.split('-');
+      if (parts.length === 3) {
+        var year = parseInt(parts[0]);
+        if (year > 0 && year < 100) {
+          parts[0] = String(year > 50 ? 1900 + year : 2000 + year);
+          e.target.value = parts.join('-');
+        }
+      }
+    }
+  }, true);
+
   updateProgress();
 </script>
 <!--CONFIG_MARKER-->

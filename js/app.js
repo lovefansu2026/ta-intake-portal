@@ -42,6 +42,7 @@
       injury: submission.sections ? (submission.sections.injury || {}) : {},
       injury_persons: submission.sections ? (submission.sections.injury_persons || []) : [],
       nursing: submission.sections ? (submission.sections.nursing || {}) : {},
+      insurance: submission.sections ? (submission.sections.insurance || {}) : {},
       deadlines: submission.deadline_reminders || [],
       demands: submission.sections ? submission.sections.demands : {},
       litigation: submission.sections ? submission.sections.litigation : {},
@@ -51,8 +52,11 @@
     // Check for duplicate
     var existing = cases.findIndex(function(c) { return c.id === caseObj.id; });
     if (existing >= 0) {
+      caseObj.notes = cases[existing].notes || [];
+      caseObj.remarks = cases[existing].remarks || '';
       cases[existing] = Object.assign(cases[existing], caseObj);
     } else {
+      caseObj.notes = caseObj.notes || [];
       cases.push(caseObj);
     }
   }
@@ -216,6 +220,7 @@
             injury: data.sections ? (data.sections.injury || {}) : {},
             injury_persons: data.sections ? (data.sections.injury_persons || []) : [],
             nursing: data.sections ? (data.sections.nursing || {}) : {},
+            insurance: data.sections ? (data.sections.insurance || {}) : {},
             deadlines: data.deadline_reminders || [],
             demands: data.sections ? data.sections.demands : {},
             litigation: data.sections ? data.sections.litigation : {},
@@ -225,8 +230,12 @@
           // Check for duplicate
           var existing = cases.findIndex(function(c) { return c.id === caseObj.id; });
           if (existing >= 0) {
+            // Preserve notes and remarks from existing case
+            caseObj.notes = cases[existing].notes || [];
+            caseObj.remarks = cases[existing].remarks || '';
             cases[existing] = Object.assign(cases[existing], caseObj);
           } else {
+            caseObj.notes = caseObj.notes || [];
             cases.push(caseObj);
           }
 
@@ -283,7 +292,7 @@
   function renderDashboard() {
     var total = cases.length;
     var intake = cases.filter(function(c) { return c.status === 'intake'; }).length;
-    var filing = cases.filter(function(c) { return c.status === 'filing'; }).length;
+    var filing = cases.filter(function(c) { return c.status === 'filing' || c.status === 'appraisal'; }).length;
 
     // Count urgent deadlines
     var urgentCount = 0;
@@ -392,7 +401,7 @@
       }
       var progress = getCaseProgress(c);
 
-      html += '<div class="case-card">' +
+      html += '<div class="case-card" style="cursor:pointer;" onclick="openCaseDetail(\'' + c.id + '\')">' +
         '<div class="case-info">' +
           '<div class="case-name">' + escHtml(name) + ' ' + statusBadge + '</div>' +
           '<div class="case-meta">' +
@@ -406,7 +415,7 @@
           '<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">进度 ' + progress + '%</div>' +
           '<div class="progress"><div class="progress-bar" style="width:' + progress + '%"></div></div>' +
         '</div>' +
-        '<div style="display:flex;gap:4px;">' +
+        '<div style="display:flex;gap:4px;" onclick="event.stopPropagation();">' +
           '<button class="btn btn-sm btn-ghost" onclick="updateCaseStatus(\'' + c.id + '\')" title="变更状态">&#9998;</button>' +
           '<button class="btn btn-sm btn-ghost" onclick="deleteCase(\'' + c.id + '\')" title="删除">&#128465;</button>' +
         '</div>' +
@@ -439,6 +448,7 @@
     if (c.materials && c.materials.checklist && c.materials.checklist.length > 0) p += 15;
     if (c.deadlines && c.deadlines.length > 0) p += 10;
     if (c.status === 'filing') p = Math.max(p, 60);
+    if (c.status === 'appraisal') p = Math.max(p, 70);
     if (c.status === 'trial') p = Math.max(p, 80);
     if (c.status === 'closed') p = 100;
     return Math.min(p, 100);
@@ -448,6 +458,7 @@
     var map = {
       intake: '<span class="badge badge-warning">接谈中</span>',
       filing: '<span class="badge badge-primary">已立案</span>',
+      appraisal: '<span class="badge" style="background:#e0f2f1;color:#00695c;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;">鉴定中</span>',
       trial: '<span class="badge badge-info">庭审中</span>',
       closed: '<span class="badge badge-success">已结案</span>'
     };
@@ -457,8 +468,8 @@
   function updateCaseStatus(caseId) {
     var c = cases.find(function(x) { return x.id === caseId; });
     if (!c) return;
-    var statuses = ['intake', 'filing', 'trial', 'closed'];
-    var labels = ['接谈中', '已立案', '庭审中', '已结案'];
+    var statuses = ['intake', 'filing', 'appraisal', 'trial', 'closed'];
+    var labels = ['接谈中', '已立案', '鉴定中', '庭审中', '已结案'];
     var current = statuses.indexOf(c.status);
     var next = (current + 1) % statuses.length;
     if (confirm('将案件「' + (c.basicInfo.name || c.id) + '」状态变更为：' + labels[next] + '？')) {
@@ -478,6 +489,187 @@
       renderDashboard();
       renderCaseList();
     }
+  }
+
+  // ===== Case Detail View =====
+  var currentCaseId = null;
+
+  function openCaseDetail(caseId) {
+    var c = cases.find(function(x) { return x.id === caseId; });
+    if (!c) return;
+    currentCaseId = caseId;
+
+    var name = c.basicInfo.name || '未知';
+    document.getElementById('caseDetailTitle').textContent = name + ' — 案件详情';
+
+    var html = '';
+
+    // Status & progress
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+      '<div>' + getStatusBadge(c.status) + ' <span style="font-size:13px;color:var(--text-muted);margin-left:8px;">编号：' + escHtml(c.id) + '</span></div>' +
+      '<button class="btn btn-sm btn-primary" onclick="updateCaseStatus(\'' + c.id + '\');openCaseDetail(\'' + c.id + '\');">变更状态</button>' +
+    '</div>';
+
+    // Basic info
+    html += '<div style="margin-bottom:20px;">';
+    html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">当事人信息</h4>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
+    html += '<div><span style="color:var(--text-muted);">姓名：</span>' + escHtml(c.basicInfo.name || '—') + '</div>';
+    html += '<div><span style="color:var(--text-muted);">电话：</span>' + escHtml(c.basicInfo.phone || '—') + '</div>';
+    html += '<div><span style="color:var(--text-muted);">性别：</span>' + escHtml(c.basicInfo.gender || '—') + '</div>';
+    html += '<div><span style="color:var(--text-muted);">出生日期：</span>' + escHtml(c.basicInfo.birthdate || '—') + '</div>';
+    html += '</div></div>';
+
+    // Accident info
+    html += '<div style="margin-bottom:20px;">';
+    html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">事故信息</h4>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
+    html += '<div><span style="color:var(--text-muted);">事故日期：</span>' + escHtml(c.accident.date || '—') + '</div>';
+    html += '<div><span style="color:var(--text-muted);">事故地点：</span>' + escHtml(c.accident.location || '—') + '</div>';
+    html += '<div><span style="color:var(--text-muted);">责任认定：</span>' + escHtml(c.accident.liability || '—') + '</div>';
+    html += '<div><span style="color:var(--text-muted);">事故形态：</span>' + escHtml(c.accident.type || '—') + '</div>';
+    html += '</div></div>';
+
+    // Injury persons
+    if (c.injury_persons && c.injury_persons.length > 0) {
+      html += '<div style="margin-bottom:20px;">';
+      html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">伤亡人员</h4>';
+      c.injury_persons.forEach(function(p, i) {
+        html += '<div style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:8px;font-size:13px;">';
+        html += '<div style="font-weight:600;margin-bottom:6px;">' + escHtml(p.person_type || '受伤') + (p.name ? ' — ' + escHtml(p.name) : '') + (p.age ? ' (' + p.age + '岁)' : '') + '</div>';
+        if (p.person_type === '死亡') {
+          html += '<div><span style="color:var(--text-muted);">死亡原因：</span>' + escHtml(p.death_cause || '—') + '</div>';
+          html += '<div><span style="color:var(--text-muted);">死亡日期：</span>' + escHtml(p.death_date || '—') + '</div>';
+        } else {
+          html += '<div><span style="color:var(--text-muted);">诊断：</span>' + escHtml(p.diagnosis || '—') + '</div>';
+          html += '<div><span style="color:var(--text-muted);">就诊医院：</span>' + escHtml(p.hospital || '—') + '</div>';
+          if (p.hospitalized) html += '<div><span style="color:var(--text-muted);">住院：</span>' + escHtml(p.hosp_start || '') + ' 至 ' + escHtml(p.hosp_end || '—') + '（' + escHtml(p.hosp_days || '—') + '天）</div>';
+          if (p.disability_level) html += '<div><span style="color:var(--text-muted);">伤残等级：</span>' + escHtml(p.disability_level) + '</div>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Insurance
+    if (c.insurance) {
+      html += '<div style="margin-bottom:20px;">';
+      html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">保险信息</h4>';
+      if (c.insurance.own_types && c.insurance.own_types.length > 0) {
+        html += '<div style="font-size:13px;margin-bottom:6px;"><span style="color:var(--text-muted);">己方险种：</span>' + escHtml(c.insurance.own_types.join('、')) + (c.insurance.own_unclear ? ' <span style="color:var(--text-muted);">（可能还有其他险种）</span>' : '') + '</div>';
+      }
+      if (c.insurance.opposite_types && c.insurance.opposite_types.length > 0) {
+        html += '<div style="font-size:13px;margin-bottom:6px;"><span style="color:var(--text-muted);">对方险种：</span>' + escHtml(c.insurance.opposite_types.join('、')) + (c.insurance.opposite_unclear ? ' <span style="color:var(--text-muted);">（可能还有其他险种）</span>' : '') + '</div>';
+      }
+      if (c.insurance.insurer) html += '<div style="font-size:13px;"><span style="color:var(--text-muted);">己方保险公司：</span>' + escHtml(c.insurance.insurer) + '</div>';
+      if (c.insurance.opposite_insurer) html += '<div style="font-size:13px;"><span style="color:var(--text-muted);">对方保险公司：</span>' + escHtml(c.insurance.opposite_insurer) + '</div>';
+      html += '</div>';
+    }
+
+    // Deadlines
+    if (c.deadlines && c.deadlines.length > 0) {
+      html += '<div style="margin-bottom:20px;">';
+      html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">关键期限</h4>';
+      c.deadlines.forEach(function(d) {
+        var level = d.urgent ? 'color:var(--danger);' : 'color:var(--text-muted);';
+        html += '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px dashed var(--border);">' +
+          '<span>' + escHtml(d.item) + '</span>' +
+          '<span style="' + level + '">' + escHtml(d.remaining || '') + '</span>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Notes / follow-up records
+    html += '<div style="margin-bottom:20px;">';
+    html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">跟进记录</h4>';
+    if (c.notes && c.notes.length > 0) {
+      c.notes.forEach(function(n) {
+        html += '<div style="background:var(--bg);border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:13px;">' +
+          '<div style="color:var(--text-muted);font-size:11px;margin-bottom:4px;">' + escHtml(n.time || '') + '</div>' +
+          '<div>' + escHtml(n.content || '') + '</div>' +
+        '</div>';
+      });
+    } else {
+      html += '<div style="font-size:13px;color:var(--text-muted);padding:8px 0;">暂无跟进记录</div>';
+    }
+    html += '</div>';
+
+    document.getElementById('caseDetailContent').innerHTML = html;
+    document.getElementById('caseEditPanel').style.display = 'none';
+    document.getElementById('caseEditToggle').style.display = '';
+    document.getElementById('caseDetailModal').style.display = '';
+  }
+
+  function closeCaseDetail() {
+    document.getElementById('caseDetailModal').style.display = 'none';
+    currentCaseId = null;
+  }
+
+  function toggleCaseEdit() {
+    var panel = document.getElementById('caseEditPanel');
+    var btn = document.getElementById('caseEditToggle');
+    if (panel.style.display === 'none') {
+      // Build edit form
+      var c = cases.find(function(x) { return x.id === currentCaseId; });
+      if (!c) return;
+
+      var html = '';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">';
+      html += '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">联系电话</label>' +
+        '<input type="text" id="editPhone" value="' + escHtml(c.basicInfo.phone || '') + '" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--bg);color:var(--text-primary);"></div>';
+      html += '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">责任认定</label>' +
+        '<select id="editLiability" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--bg);color:var(--text-primary);">' +
+        '<option value="">—</option>' +
+        '<option value="对方全责"' + (c.accident.liability === '对方全责' ? ' selected' : '') + '>对方全责</option>' +
+        '<option value="己方全责"' + (c.accident.liability === '己方全责' ? ' selected' : '') + '>己方全责</option>' +
+        '<option value="同等责任"' + (c.accident.liability === '同等责任' ? ' selected' : '') + '>同等责任</option>' +
+        '<option value="主次责任"' + (c.accident.liability === '主次责任' ? ' selected' : '') + '>主次责任</option>' +
+        '<option value="尚未认定"' + (c.accident.liability === '尚未认定' ? ' selected' : '') + '>尚未认定</option>' +
+        '</select></div>';
+      html += '</div>';
+
+      html += '<div style="margin-bottom:16px;">' +
+        '<label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">备注（诉讼状态、特殊情况等）</label>' +
+        '<textarea id="editNotes" placeholder="补充案件备注信息..." style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;resize:vertical;background:var(--bg);color:var(--text-primary);">' + escHtml(c.remarks || '') + '</textarea>' +
+      '</div>';
+
+      document.getElementById('caseEditForm').innerHTML = html;
+      panel.style.display = '';
+      btn.textContent = '✕ 取消编辑';
+    } else {
+      panel.style.display = 'none';
+      btn.textContent = '✎ 编辑';
+    }
+  }
+
+  function saveCaseEdit() {
+    var c = cases.find(function(x) { return x.id === currentCaseId; });
+    if (!c) return;
+
+    // Update editable fields
+    var phone = document.getElementById('editPhone');
+    var liability = document.getElementById('editLiability');
+    var remarks = document.getElementById('editNotes');
+    if (phone) c.basicInfo.phone = phone.value.trim();
+    if (liability) c.accident.liability = liability.value;
+    if (remarks) c.remarks = remarks.value.trim();
+
+    // Add note if entered
+    var noteInput = document.getElementById('caseNoteInput');
+    if (noteInput && noteInput.value.trim()) {
+      if (!c.notes) c.notes = [];
+      c.notes.unshift({
+        time: new Date().toLocaleString('zh-CN'),
+        content: noteInput.value.trim()
+      });
+    }
+
+    saveCases();
+    renderDashboard();
+    renderCaseList();
+    openCaseDetail(currentCaseId);
+    alert('已保存');
   }
 
   // ===== Deadline List =====
@@ -1007,11 +1199,14 @@
   window.searchLaws = searchLaws;
   window.updateCaseStatus = updateCaseStatus;
   window.deleteCase = deleteCase;
+  window.openCaseDetail = openCaseDetail;
+  window.closeCaseDetail = closeCaseDetail;
+  window.toggleCaseEdit = toggleCaseEdit;
+  window.saveCaseEdit = saveCaseEdit;
   window.generateReport = generateReport;
   window.exportCaseData = exportCaseData;
   window.previewTemplate = previewTemplate;
   window.calcCourtFee = calcCourtFee;
-  window.syncFromAPI = syncFromAPI;
 
   // ===== Boot =====
   if (document.readyState === 'loading') {
