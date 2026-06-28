@@ -95,8 +95,10 @@
       if (actionBtn) {
         e.stopPropagation();
         var id = actionBtn.getAttribute('data-id');
-        if (actionBtn.getAttribute('data-action') === 'status') updateCaseStatus(id);
-        else if (actionBtn.getAttribute('data-action') === 'delete') deleteCase(id);
+        var action = actionBtn.getAttribute('data-action');
+        if (action === 'status') updateCaseStatus(id);
+        else if (action === 'delete') deleteCase(id);
+        else if (action === 'edit') { openCaseDetail(id); setTimeout(function(){ toggleCaseEdit(); }, 100); }
         return;
       }
       var card = e.target.closest('[data-case-id]');
@@ -256,7 +258,7 @@
         try {
           var data = JSON.parse(e.target.result);
           var caseObj = {
-            id: data._meta && data._meta.case_id ? data._meta.case_id : 'TA-' + Date.now(),
+            id: data._meta && data._meta.case_id ? data._meta.case_id : 'TA-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
             importTime: new Date().toISOString(),
             status: 'intake',
             source: data,
@@ -311,6 +313,7 @@
 
           saveCases();
           renderDashboard();
+          renderCaseList();
           alert('导入成功：' + (caseObj.basicInfo.name || caseObj.id));
         } catch(err) {
           alert('导入失败：' + file.name + ' 格式错误');
@@ -403,7 +406,7 @@
             '<div class="case-name">' + escHtml(name) + ' ' + statusBadge + '</div>' +
             '<div class="case-meta"><span>事故：' + escHtml(accidentDate) + '</span><span>责任：' + escHtml(liability) + '</span><span>编号：' + escHtml(c.id) + '</span></div>' +
           '</div>' +
-          '<button class="btn btn-sm btn-ghost" data-action="status" data-id="' + escHtml(c.id) + '" title="变更状态" onclick="event.stopPropagation();">&#9998;</button>' +
+          '<button class="btn btn-sm btn-ghost" data-action="edit" data-id="' + escHtml(c.id) + '" title="编辑/查看详情">&#9998;</button>' +
         '</div>';
       });
       recentDiv.innerHTML = html;
@@ -411,7 +414,13 @@
       // Add click delegation for recent cases
       recentDiv.onclick = function(e) {
         var actionBtn = e.target.closest('[data-action]');
-        if (actionBtn) { updateCaseStatus(actionBtn.getAttribute('data-id')); return; }
+        if (actionBtn) {
+          var id = actionBtn.getAttribute('data-id');
+          var action = actionBtn.getAttribute('data-action');
+          if (action === 'edit') { openCaseDetail(id); setTimeout(function(){ toggleCaseEdit(); }, 100); }
+          else if (action === 'status') updateCaseStatus(id);
+          return;
+        }
         var card = e.target.closest('[data-case-id]');
         if (card) openCaseDetail(card.getAttribute('data-case-id'));
       };
@@ -544,8 +553,8 @@
           '<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">进度 ' + progress + '%</div>' +
           '<div class="progress"><div class="progress-bar" style="width:' + progress + '%"></div></div>' +
         '</div>' +
-        '<div style="display:flex;gap:4px;" onclick="event.stopPropagation();">' +
-          '<button class="btn btn-sm btn-ghost" data-action="status" data-id="' + escHtml(c.id) + '" title="变更状态">&#9998;</button>' +
+        '<div style="display:flex;gap:4px;">' +
+          '<button class="btn btn-sm btn-ghost" data-action="edit" data-id="' + escHtml(c.id) + '" title="编辑/查看详情">&#9998;</button>' +
           '<button class="btn btn-sm btn-ghost" data-action="delete" data-id="' + escHtml(c.id) + '" title="删除">&#128465;</button>' +
         '</div>' +
       '</div>';
