@@ -39,16 +39,16 @@
       importTime: submission.timestamp || new Date().toISOString(),
       status: submission.status || 'intake',
       source: submission,
-      basicInfo: submission.sections ? submission.sections.basic_info : {},
-      accident: submission.sections ? submission.sections.accident : {},
-      injury: submission.sections ? (submission.sections.injury || {}) : {},
-      injury_persons: submission.sections ? (submission.sections.injury_persons || []) : [],
-      nursing: submission.sections ? (submission.sections.nursing || {}) : {},
-      insurance: submission.sections ? (submission.sections.insurance || {}) : {},
+      basicInfo: (submission.sections && submission.sections.basic_info) || {},
+      accident: (submission.sections && submission.sections.accident) || {},
+      injury: (submission.sections && submission.sections.injury) || {},
+      injury_persons: (submission.sections && submission.sections.injury_persons) || [],
+      nursing: (submission.sections && submission.sections.nursing) || {},
+      insurance: (submission.sections && submission.sections.insurance) || {},
       deadlines: submission.deadline_reminders || [],
-      demands: submission.sections ? submission.sections.demands : {},
-      litigation: submission.sections ? submission.sections.litigation : {},
-      materials: submission.sections ? submission.sections.materials : {},
+      demands: (submission.sections && submission.sections.demands) || {},
+      litigation: (submission.sections && submission.sections.litigation) || {},
+      materials: (submission.sections && submission.sections.materials) || {},
       team: { market_contact: '', consulting_lawyer: '', filing_lawyer: '', representing_lawyer: '' },
       appraisal: {
         disability_appraisal_status: '', // 伤残鉴定状态: 申请/重新申请/不申请
@@ -222,6 +222,8 @@
       if (stored) cases = JSON.parse(stored);
     } catch(e) { cases = []; }
 
+    // Ensure all cases have proper sub-objects (backward compat for corrupted data)
+    normalizeAllCases();
     // Ensure all deadlines have verification sub-objects (backward compat)
     normalizeAllVerifications();
 
@@ -267,85 +269,120 @@
   }
 
   // ===== Import Questionnaire JSON =====
+  // Detects multiple formats:
+  //   1. Intake form:   {_meta, sections:{basic_info,accident,...}, deadline_reminders}
+  //   2. Export file:   {cases:[{...},...], exportTime}
+  //   3. Direct case:   {id, basicInfo:{...}, accident:{...}, deadlines:[...], ...}
+  //   4. Array of cases: [{...}, {...}]
   function importQuestionnaire(files) {
     if (!files || files.length === 0) return;
+
+    var importCount = 0;
+    var filesRemaining = files.length;
+
+    function tryFinish() {
+      filesRemaining--;
+      if (filesRemaining <= 0) {
+        saveCases();
+        renderDashboard();
+        renderCaseList();
+        if (importCount > 0) alert('导入成功：' + importCount + ' 个案件');
+      }
+    }
 
     Array.from(files).forEach(function(file) {
       var reader = new FileReader();
       reader.onload = function(e) {
         try {
           var data = JSON.parse(e.target.result);
-          var caseObj = {
-            id: data._meta && data._meta.case_id ? data._meta.case_id : 'TA-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-            importTime: new Date().toISOString(),
-            status: 'intake',
-            source: data,
-            basicInfo: data.sections ? data.sections.basic_info : {},
-            accident: data.sections ? data.sections.accident : {},
-            injury: data.sections ? (data.sections.injury || {}) : {},
-            injury_persons: data.sections ? (data.sections.injury_persons || []) : [],
-            nursing: data.sections ? (data.sections.nursing || {}) : {},
-            insurance: data.sections ? (data.sections.insurance || {}) : {},
-            deadlines: data.deadline_reminders || [],
-            demands: data.sections ? data.sections.demands : {},
-            litigation: data.sections ? data.sections.litigation : {},
-            materials: data.sections ? data.sections.materials : {},
-            // Team members
-            team: {
-              market_contact: '', // 市场接洽人员
-              consulting_lawyer: '', // 谈案律师
-              filing_lawyer: '', // 立案律师
-              representing_lawyer: '' // 代理律师
-            },
-            // Appraisal fields
-            appraisal: {
-              disability_appraisal_status: '', // 伤残鉴定状态: 申请/重新申请/不申请
-              disability_level: '',
-              disability_date: '',
-              disability_institution: '',
-              nursing_appraisal_status: '', // 护理鉴定状态: 申请/重新申请/不申请
-              three_periods: '',
-              three_periods_date: '',
-              three_periods_institution: '',
-              appraisal_notes: ''
-            },
-            // Fee fields
-            fees: {
-              agency_fee: '', // 代理费金额
-              settlement_status: '', // 结算状态：未付/部分支付/已付
-              settlement_notes: '' // 结算备注
-            }
-          };
+          var items = [];
 
-          // Check for duplicate
-          var existing = cases.findIndex(function(c) { return c.id === caseObj.id; });
-          if (existing >= 0) {
-            // Same ID but different person? → ID collision, generate new ID
-            var existingName = (cases[existing].basicInfo && cases[existing].basicInfo.name) || '';
-            var newName = (caseObj.basicInfo && caseObj.basicInfo.name) || '';
-            if (newName && existingName && newName !== existingName) {
-              // Different person — generate unique ID to avoid collision
-              caseObj.id = 'TA-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
-              caseObj.notes = caseObj.notes || [];
-              cases.push(caseObj);
-            } else {
-              // Same person — update existing case (preserve notes/remarks)
-              caseObj.notes = cases[existing].notes || [];
-              caseObj.remarks = cases[existing].remarks || '';
-              cases[existing] = Object.assign(cases[existing], caseObj);
-            }
-          } else {
-            caseObj.notes = caseObj.notes || [];
-            cases.push(caseObj);
+          // Detect format
+          if (data && data.cases && Array.isArray(data.cases)) {
+            // Format 2: Export file with {cases:[...]}
+            items = data.cases;
+          } else if (Array.isArray(data)) {
+            // Format 4: Array of cases
+            items = data;
+          } else if (data && typeof data === 'object') {
+            items = [data]; // Format 1 or 3: single case object
           }
 
-          saveCases();
-          renderDashboard();
-          renderCaseList();
-          alert('导入成功：' + (caseObj.basicInfo.name || caseObj.id));
+          items.forEach(function(raw) {
+            // Build caseObj from raw data, handling both intake form and direct formats
+            var isIntakeForm = raw._meta || raw.sections;
+            var caseObj = {
+              id: raw.id || (raw._meta && raw._meta.case_id) || ('TA-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6)),
+              importTime: raw.importTime || new Date().toISOString(),
+              status: raw.status || 'intake',
+              source: raw
+            };
+
+            if (isIntakeForm) {
+              // Intake form format (format 1): data under sections
+              caseObj.basicInfo = (raw.sections && raw.sections.basic_info) || {};
+              caseObj.accident = (raw.sections && raw.sections.accident) || {};
+              caseObj.injury = (raw.sections && raw.sections.injury) || {};
+              caseObj.injury_persons = (raw.sections && raw.sections.injury_persons) || [];
+              caseObj.nursing = (raw.sections && raw.sections.nursing) || {};
+              caseObj.insurance = (raw.sections && raw.sections.insurance) || {};
+              caseObj.deadlines = raw.deadline_reminders || [];
+              caseObj.demands = (raw.sections && raw.sections.demands) || {};
+              caseObj.litigation = (raw.sections && raw.sections.litigation) || {};
+              caseObj.materials = (raw.sections && raw.sections.materials) || {};
+            } else {
+              // Direct case format (format 3): fields at top level
+              caseObj.basicInfo = raw.basicInfo || {};
+              caseObj.accident = raw.accident || {};
+              caseObj.injury = raw.injury || {};
+              caseObj.injury_persons = raw.injury_persons || [];
+              caseObj.nursing = raw.nursing || {};
+              caseObj.insurance = raw.insurance || {};
+              caseObj.deadlines = raw.deadlines || [];
+              caseObj.demands = raw.demands || {};
+              caseObj.litigation = raw.litigation || {};
+              caseObj.materials = raw.materials || {};
+            }
+
+            // Preserve existing sub-objects from old data
+            caseObj.team = raw.team || { market_contact: '', consulting_lawyer: '', filing_lawyer: '', representing_lawyer: '' };
+            caseObj.appraisal = raw.appraisal || { disability_appraisal_status: '', disability_level: '', disability_date: '', disability_institution: '', nursing_appraisal_status: '', three_periods: '', three_periods_date: '', three_periods_institution: '', appraisal_notes: '' };
+            caseObj.fees = raw.fees || { agency_fee: '', settlement_status: '', settlement_notes: '' };
+            caseObj.notes = raw.notes || [];
+            caseObj.remarks = raw.remarks || '';
+
+            // Check for duplicate
+            var existing = cases.findIndex(function(c) { return c.id === caseObj.id; });
+            if (existing >= 0) {
+              var existingName = (cases[existing].basicInfo && cases[existing].basicInfo.name) || '';
+              var newName = (caseObj.basicInfo && caseObj.basicInfo.name) || '';
+              if (newName && existingName && newName !== existingName) {
+                // Different person — generate unique ID to avoid collision
+                caseObj.id = 'TA-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+                caseObj.notes = caseObj.notes || [];
+                cases.push(caseObj);
+                importCount++;
+              } else {
+                // Same person — update existing case (preserve notes/remarks)
+                caseObj.notes = cases[existing].notes || [];
+                caseObj.remarks = cases[existing].remarks || '';
+                cases[existing] = Object.assign(cases[existing], caseObj);
+              }
+            } else {
+              caseObj.notes = caseObj.notes || [];
+              cases.push(caseObj);
+              importCount++;
+            }
+          });
+
+          tryFinish();
         } catch(err) {
-          alert('导入失败：' + file.name + ' 格式错误');
+          console.error('Import error:', err);
+          tryFinish();
         }
+      };
+      reader.onerror = function() {
+        tryFinish();
       };
       reader.readAsText(file);
     });
@@ -661,10 +698,20 @@
   var currentCaseId = null;
 
   function openCaseDetail(caseId) {
+    try {
     console.log('[openCaseDetail] caseId=' + caseId);
     var c = cases.find(function(x) { return x.id === caseId; });
     if (!c) { console.warn('[openCaseDetail] case not found:', caseId); return; }
     currentCaseId = caseId;
+    // Defensive: ensure sub-objects exist before accessing
+    c.basicInfo = c.basicInfo || {};
+    c.accident = c.accident || {};
+    c.appraisal = c.appraisal || {};
+    c.fees = c.fees || {};
+    c.insurance = c.insurance || {};
+    c.injury_persons = c.injury_persons || [];
+    c.deadlines = c.deadlines || [];
+    c.team = c.team || {};
     console.log('[openCaseDetail] found case:', c.basicInfo.name);
 
     var name = c.basicInfo.name || '未知';
@@ -933,6 +980,10 @@
     document.getElementById('caseEditToggle').style.display = '';
     document.getElementById('caseDetailModal').style.display = '';
     console.log('[openCaseDetail] modal displayed successfully');
+    } catch(err) {
+      console.error('[openCaseDetail] error:', err);
+      alert('无法打开案件详情：' + (err.message || err) + '\n\n请截图此提示反馈给开发者。');
+    }
   }
 
   function closeCaseDetail() {
@@ -1372,6 +1423,38 @@
   function normalizeAllVerifications() {
     cases.forEach(function(c) {
       (c.deadlines || []).forEach(normalizeDeadlineVerification);
+    });
+  }
+
+  // Ensure all cases have proper sub-objects (fix corrupted data from older imports)
+  function normalizeAllCases() {
+    cases.forEach(function(c) {
+      c.basicInfo = c.basicInfo || {};
+      c.accident = c.accident || {};
+      c.appraisal = c.appraisal || {};
+      c.fees = c.fees || {};
+      c.insurance = c.insurance || {};
+      c.injury_persons = c.injury_persons || [];
+      c.deadlines = c.deadlines || [];
+      c.team = c.team || {};
+      c.notes = c.notes || [];
+      c.litigation = c.litigation || {};
+      c.materials = c.materials || {};
+      c.demands = c.demands || {};
+      c.nursing = c.nursing || {};
+      c.injury = c.injury || {};
+      // Ensure team has all expected sub-fields
+      c.team.market_contact = c.team.market_contact || '';
+      c.team.consulting_lawyer = c.team.consulting_lawyer || '';
+      c.team.filing_lawyer = c.team.filing_lawyer || '';
+      c.team.representing_lawyer = c.team.representing_lawyer || '';
+      // Ensure appraisal has all expected sub-fields
+      c.appraisal.disability_appraisal_status = c.appraisal.disability_appraisal_status || '';
+      c.appraisal.nursing_appraisal_status = c.appraisal.nursing_appraisal_status || '';
+      // Ensure fees has all expected sub-fields
+      c.fees.agency_fee = c.fees.agency_fee || '';
+      c.fees.settlement_status = c.fees.settlement_status || '';
+      c.fees.settlement_notes = c.fees.settlement_notes || '';
     });
   }
 
