@@ -369,15 +369,23 @@
         var name = c.basicInfo.name || '未知';
         var accidentDate = c.accident.date || '—';
         var liability = c.accident.liability || '—';
-        html += '<div class="case-card">' +
+        html += '<div class="case-card" style="cursor:pointer;" data-case-id="' + escHtml(c.id) + '">' +
           '<div class="case-info">' +
             '<div class="case-name">' + escHtml(name) + ' ' + statusBadge + '</div>' +
             '<div class="case-meta"><span>事故：' + escHtml(accidentDate) + '</span><span>责任：' + escHtml(liability) + '</span><span>编号：' + escHtml(c.id) + '</span></div>' +
           '</div>' +
-          '<button class="btn btn-sm btn-ghost" onclick="updateCaseStatus(\'' + c.id + '\')" title="变更状态">&#9998;</button>' +
+          '<button class="btn btn-sm btn-ghost" data-action="status" data-id="' + escHtml(c.id) + '" title="变更状态" onclick="event.stopPropagation();">&#9998;</button>' +
         '</div>';
       });
       recentDiv.innerHTML = html;
+
+      // Add click delegation for recent cases
+      recentDiv.onclick = function(e) {
+        var actionBtn = e.target.closest('[data-action]');
+        if (actionBtn) { updateCaseStatus(actionBtn.getAttribute('data-id')); return; }
+        var card = e.target.closest('[data-case-id]');
+        if (card) openCaseDetail(card.getAttribute('data-case-id'));
+      };
     }
 
     // Recent deadlines
