@@ -104,13 +104,23 @@
         e.stopPropagation();
         var id = actionBtn.getAttribute('data-id');
         var action = actionBtn.getAttribute('data-action');
+        console.log('[caseList click] action=' + action + ' id=' + id);
         if (action === 'status') updateCaseStatus(id);
         else if (action === 'delete') deleteCase(id);
-        else if (action === 'edit') { openCaseDetail(id); setTimeout(function(){ toggleCaseEdit(); }, 100); }
+        else if (action === 'edit') {
+          try {
+            openCaseDetail(id);
+            setTimeout(function(){ toggleCaseEdit(); }, 100);
+          } catch(err) { console.error('[caseList click] edit failed:', err); }
+        }
         return;
       }
       var card = e.target.closest('[data-case-id]');
-      if (card) openCaseDetail(card.getAttribute('data-case-id'));
+      if (card) {
+        var cid = card.getAttribute('data-case-id');
+        console.log('[caseList click] card id=' + cid);
+        try { openCaseDetail(cid); } catch(err) { console.error('[caseList click] openCaseDetail failed:', err); }
+      }
     });
 
     // Event delegation for deadline board items (verification click)
@@ -651,9 +661,11 @@
   var currentCaseId = null;
 
   function openCaseDetail(caseId) {
+    console.log('[openCaseDetail] caseId=' + caseId);
     var c = cases.find(function(x) { return x.id === caseId; });
-    if (!c) return;
+    if (!c) { console.warn('[openCaseDetail] case not found:', caseId); return; }
     currentCaseId = caseId;
+    console.log('[openCaseDetail] found case:', c.basicInfo.name);
 
     var name = c.basicInfo.name || '未知';
     document.getElementById('caseDetailTitle').textContent = name + ' — 案件详情';
@@ -920,6 +932,7 @@
     document.getElementById('caseEditPanel').style.display = 'none';
     document.getElementById('caseEditToggle').style.display = '';
     document.getElementById('caseDetailModal').style.display = '';
+    console.log('[openCaseDetail] modal displayed successfully');
   }
 
   function closeCaseDetail() {
