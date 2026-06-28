@@ -35,7 +35,7 @@
 
   function importSubmissionToCase(submission) {
     var caseObj = {
-      id: submission._meta && submission._meta.case_id ? submission._meta.case_id : submission.id || ('TA-' + Date.now()),
+      id: submission._meta && submission._meta.case_id ? submission._meta.case_id : submission.id || ('TA-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6)),
       importTime: submission.timestamp || new Date().toISOString(),
       status: submission.status || 'intake',
       source: submission,
@@ -67,9 +67,17 @@
     // Check for duplicate
     var existing = cases.findIndex(function(c) { return c.id === caseObj.id; });
     if (existing >= 0) {
-      caseObj.notes = cases[existing].notes || [];
-      caseObj.remarks = cases[existing].remarks || '';
-      cases[existing] = Object.assign(cases[existing], caseObj);
+      var existingName = (cases[existing].basicInfo && cases[existing].basicInfo.name) || '';
+      var newName = (caseObj.basicInfo && caseObj.basicInfo.name) || '';
+      if (newName && existingName && newName !== existingName) {
+        caseObj.id = 'TA-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+        caseObj.notes = caseObj.notes || [];
+        cases.push(caseObj);
+      } else {
+        caseObj.notes = cases[existing].notes || [];
+        caseObj.remarks = cases[existing].remarks || '';
+        cases[existing] = Object.assign(cases[existing], caseObj);
+      }
     } else {
       caseObj.notes = caseObj.notes || [];
       cases.push(caseObj);
@@ -302,10 +310,20 @@
           // Check for duplicate
           var existing = cases.findIndex(function(c) { return c.id === caseObj.id; });
           if (existing >= 0) {
-            // Preserve notes and remarks from existing case
-            caseObj.notes = cases[existing].notes || [];
-            caseObj.remarks = cases[existing].remarks || '';
-            cases[existing] = Object.assign(cases[existing], caseObj);
+            // Same ID but different person? → ID collision, generate new ID
+            var existingName = (cases[existing].basicInfo && cases[existing].basicInfo.name) || '';
+            var newName = (caseObj.basicInfo && caseObj.basicInfo.name) || '';
+            if (newName && existingName && newName !== existingName) {
+              // Different person — generate unique ID to avoid collision
+              caseObj.id = 'TA-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+              caseObj.notes = caseObj.notes || [];
+              cases.push(caseObj);
+            } else {
+              // Same person — update existing case (preserve notes/remarks)
+              caseObj.notes = cases[existing].notes || [];
+              caseObj.remarks = cases[existing].remarks || '';
+              cases[existing] = Object.assign(cases[existing], caseObj);
+            }
           } else {
             caseObj.notes = caseObj.notes || [];
             cases.push(caseObj);

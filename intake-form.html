@@ -1933,7 +1933,7 @@
     });
 
     var now = new Date();
-    var rand = Math.random().toString(36).substr(2, 3).toUpperCase();
+    var rand = Math.random().toString(36).substr(2, 6).toUpperCase();
     var caseId = 'TA-' + now.getFullYear() +
       String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') +
       String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') +
