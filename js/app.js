@@ -47,7 +47,10 @@
       deadlines: submission.deadline_reminders || [],
       demands: submission.sections ? submission.sections.demands : {},
       litigation: submission.sections ? submission.sections.litigation : {},
-      materials: submission.sections ? submission.sections.materials : {}
+      materials: submission.sections ? submission.sections.materials : {},
+      team: { market_contact: '', consulting_lawyer: '', filing_lawyer: '', representing_lawyer: '' },
+      appraisal: { disability_level: '', disability_date: '', disability_institution: '', three_periods: '', three_periods_date: '', three_periods_institution: '', appraisal_notes: '' },
+      fees: { agency_fee: '', settlement_status: '', settlement_notes: '' }
     };
 
     // Check for duplicate
@@ -74,6 +77,20 @@
     initTheme();
     handleRoute();
     window.addEventListener('hashchange', handleRoute);
+
+    // Event delegation for case cards
+    document.getElementById('caseList').addEventListener('click', function(e) {
+      var actionBtn = e.target.closest('[data-action]');
+      if (actionBtn) {
+        e.stopPropagation();
+        var id = actionBtn.getAttribute('data-id');
+        if (actionBtn.getAttribute('data-action') === 'status') updateCaseStatus(id);
+        else if (actionBtn.getAttribute('data-action') === 'delete') deleteCase(id);
+        return;
+      }
+      var card = e.target.closest('[data-case-id]');
+      if (card) openCaseDetail(card.getAttribute('data-case-id'));
+    });
   }
 
   // ===== Theme =====
@@ -225,7 +242,30 @@
             deadlines: data.deadline_reminders || [],
             demands: data.sections ? data.sections.demands : {},
             litigation: data.sections ? data.sections.litigation : {},
-            materials: data.sections ? data.sections.materials : {}
+            materials: data.sections ? data.sections.materials : {},
+            // Team members
+            team: {
+              market_contact: '', // 市场接洽人员
+              consulting_lawyer: '', // 谈案律师
+              filing_lawyer: '', // 立案律师
+              representing_lawyer: '' // 代理律师
+            },
+            // Appraisal fields
+            appraisal: {
+              disability_level: '', // 伤残鉴定等级
+              disability_date: '', // 伤残鉴定日期
+              disability_institution: '', // 鉴定机构
+              three_periods: '', // 三期鉴定（误工期/护理期/营养期）
+              three_periods_date: '', // 三期鉴定日期
+              three_periods_institution: '', // 鉴定机构
+              appraisal_notes: '' // 鉴定备注
+            },
+            // Fee fields
+            fees: {
+              agency_fee: '', // 代理费金额
+              settlement_status: '', // 结算状态：未付/部分支付/已付
+              settlement_notes: '' // 结算备注
+            }
           };
 
           // Check for duplicate
@@ -374,13 +414,23 @@
     if (caseSearchQuery) {
       var q = caseSearchQuery.toLowerCase();
       filtered = filtered.filter(function(c) {
+        var team = c.team || {};
+        var appr = c.appraisal || {};
+        var fees = c.fees || {};
         var searchable = [
           c.basicInfo.name, c.basicInfo.phone, c.basicInfo.gender, c.basicInfo.birthdate,
           c.basicInfo.address, c.basicInfo.occupation, c.basicInfo.employer,
           c.id,
           c.accident.date, c.accident.location, c.accident.liability, c.accident.weather,
           c.accident.accident_type,
-          c.remarks || ''
+          c.remarks || '',
+          // Team members
+          team.market_contact, team.consulting_lawyer, team.filing_lawyer, team.representing_lawyer,
+          // Appraisal
+          appr.disability_level, appr.disability_institution, appr.three_periods, appr.three_periods_institution,
+          appr.appraisal_notes,
+          // Fees
+          fees.agency_fee, fees.settlement_status, fees.settlement_notes
         ];
         // Search injury persons
         if (c.injury_persons) {
@@ -425,7 +475,7 @@
       }
       var progress = getCaseProgress(c);
 
-      html += '<div class="case-card" style="cursor:pointer;" onclick="openCaseDetail(\'' + c.id + '\')">' +
+      html += '<div class="case-card" style="cursor:pointer;" data-case-id="' + escHtml(c.id) + '">' +
         '<div class="case-info">' +
           '<div class="case-name">' + escHtml(name) + ' ' + statusBadge + '</div>' +
           '<div class="case-meta">' +
@@ -440,8 +490,8 @@
           '<div class="progress"><div class="progress-bar" style="width:' + progress + '%"></div></div>' +
         '</div>' +
         '<div style="display:flex;gap:4px;" onclick="event.stopPropagation();">' +
-          '<button class="btn btn-sm btn-ghost" onclick="updateCaseStatus(\'' + c.id + '\')" title="变更状态">&#9998;</button>' +
-          '<button class="btn btn-sm btn-ghost" onclick="deleteCase(\'' + c.id + '\')" title="删除">&#128465;</button>' +
+          '<button class="btn btn-sm btn-ghost" data-action="status" data-id="' + escHtml(c.id) + '" title="变更状态">&#9998;</button>' +
+          '<button class="btn btn-sm btn-ghost" data-action="delete" data-id="' + escHtml(c.id) + '" title="删除">&#128465;</button>' +
         '</div>' +
       '</div>';
     });
@@ -604,6 +654,50 @@
       html += '</div>';
     }
 
+    // Team members
+    var team = c.team || {};
+    if (team.market_contact || team.consulting_lawyer || team.filing_lawyer || team.representing_lawyer) {
+      html += '<div style="margin-bottom:20px;">';
+      html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">团队人员</h4>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
+      if (team.market_contact) html += '<div><span style="color:var(--text-muted);">市场接洽人员：</span>' + escHtml(team.market_contact) + '</div>';
+      if (team.consulting_lawyer) html += '<div><span style="color:var(--text-muted);">谈案律师：</span>' + escHtml(team.consulting_lawyer) + '</div>';
+      if (team.filing_lawyer) html += '<div><span style="color:var(--text-muted);">立案律师：</span>' + escHtml(team.filing_lawyer) + '</div>';
+      if (team.representing_lawyer) html += '<div><span style="color:var(--text-muted);">代理律师：</span>' + escHtml(team.representing_lawyer) + '</div>';
+      html += '</div></div>';
+    }
+
+    // Appraisal info
+    var appr = c.appraisal || {};
+    if (appr.disability_level || appr.three_periods || appr.appraisal_notes) {
+      html += '<div style="margin-bottom:20px;">';
+      html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">鉴定信息</h4>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
+      if (appr.disability_level) html += '<div><span style="color:var(--text-muted);">伤残鉴定等级：</span>' + escHtml(appr.disability_level) + '</div>';
+      if (appr.disability_date) html += '<div><span style="color:var(--text-muted);">伤残鉴定日期：</span>' + escHtml(appr.disability_date) + '</div>';
+      if (appr.disability_institution) html += '<div><span style="color:var(--text-muted);">伤残鉴定机构：</span>' + escHtml(appr.disability_institution) + '</div>';
+      if (appr.three_periods) html += '<div style="grid-column:1/-1;"><span style="color:var(--text-muted);">三期鉴定：</span>' + escHtml(appr.three_periods) + '</div>';
+      if (appr.three_periods_date) html += '<div><span style="color:var(--text-muted);">三期鉴定日期：</span>' + escHtml(appr.three_periods_date) + '</div>';
+      if (appr.three_periods_institution) html += '<div><span style="color:var(--text-muted);">三期鉴定机构：</span>' + escHtml(appr.three_periods_institution) + '</div>';
+      if (appr.appraisal_notes) html += '<div style="grid-column:1/-1;"><span style="color:var(--text-muted);">鉴定备注：</span>' + escHtml(appr.appraisal_notes) + '</div>';
+      html += '</div></div>';
+    }
+
+    // Fee info
+    var fees = c.fees || {};
+    if (fees.agency_fee || fees.settlement_status) {
+      html += '<div style="margin-bottom:20px;">';
+      html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">代理费</h4>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
+      if (fees.agency_fee) html += '<div><span style="color:var(--text-muted);">代理费金额：</span><strong>' + escHtml(fees.agency_fee) + ' 元</strong></div>';
+      if (fees.settlement_status) {
+        var statusColor = fees.settlement_status === '已付' ? '#2d7a4c' : fees.settlement_status === '部分支付' ? '#b8860b' : '#c0534d';
+        html += '<div><span style="color:var(--text-muted);">结算状态：</span><span style="color:' + statusColor + ';font-weight:600;">' + escHtml(fees.settlement_status) + '</span></div>';
+      }
+      if (fees.settlement_notes) html += '<div style="grid-column:1/-1;"><span style="color:var(--text-muted);">结算备注：</span>' + escHtml(fees.settlement_notes) + '</div>';
+      html += '</div></div>';
+    }
+
     // Notes / follow-up records
     html += '<div style="margin-bottom:20px;">';
     html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">跟进记录</h4>';
@@ -639,11 +733,18 @@
       if (!c) return;
 
       var html = '';
+      var inputStyle = 'width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--bg);color:var(--text-primary);';
+      var labelStyle = 'font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;';
+      var team = c.team || {};
+      var appr = c.appraisal || {};
+      var fees = c.fees || {};
+
+      // Basic fields
       html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">';
-      html += '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">联系电话</label>' +
-        '<input type="text" id="editPhone" value="' + escHtml(c.basicInfo.phone || '') + '" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--bg);color:var(--text-primary);"></div>';
-      html += '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">责任认定</label>' +
-        '<select id="editLiability" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--bg);color:var(--text-primary);">' +
+      html += '<div><label style="' + labelStyle + '">联系电话</label>' +
+        '<input type="text" id="editPhone" value="' + escHtml(c.basicInfo.phone || '') + '" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">责任认定</label>' +
+        '<select id="editLiability" style="' + inputStyle + '">' +
         '<option value="">—</option>' +
         '<option value="对方全责"' + (c.accident.liability === '对方全责' ? ' selected' : '') + '>对方全责</option>' +
         '<option value="己方全责"' + (c.accident.liability === '己方全责' ? ' selected' : '') + '>己方全责</option>' +
@@ -653,9 +754,50 @@
         '</select></div>';
       html += '</div>';
 
+      // Team members
+      html += '<div style="margin-bottom:16px;padding:12px;background:var(--bg);border-radius:8px;">';
+      html += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;">团队人员</div>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+      html += '<div><label style="' + labelStyle + '">市场接洽人员</label><input type="text" id="editMarketContact" value="' + escHtml(team.market_contact || '') + '" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">谈案律师</label><input type="text" id="editConsultingLawyer" value="' + escHtml(team.consulting_lawyer || '') + '" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">立案律师</label><input type="text" id="editFilingLawyer" value="' + escHtml(team.filing_lawyer || '') + '" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">代理律师</label><input type="text" id="editRepresentingLawyer" value="' + escHtml(team.representing_lawyer || '') + '" style="' + inputStyle + '"></div>';
+      html += '</div></div>';
+
+      // Appraisal fields
+      html += '<div style="margin-bottom:16px;padding:12px;background:var(--bg);border-radius:8px;">';
+      html += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;">鉴定信息</div>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+      html += '<div><label style="' + labelStyle + '">伤残鉴定等级</label><input type="text" id="editDisabilityLevel" value="' + escHtml(appr.disability_level || '') + '" placeholder="例：十级" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">伤残鉴定日期</label><input type="date" id="editDisabilityDate" value="' + escHtml(appr.disability_date || '') + '" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">伤残鉴定机构</label><input type="text" id="editDisabilityInst" value="' + escHtml(appr.disability_institution || '') + '" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">三期鉴定（误工/护理/营养期）</label><input type="text" id="editThreePeriods" value="' + escHtml(appr.three_periods || '') + '" placeholder="例：误工120日/护理60日/营养60日" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">三期鉴定日期</label><input type="date" id="editThreePeriodsDate" value="' + escHtml(appr.three_periods_date || '') + '" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">三期鉴定机构</label><input type="text" id="editThreePeriodsInst" value="' + escHtml(appr.three_periods_institution || '') + '" style="' + inputStyle + '"></div>';
+      html += '</div>';
+      html += '<div style="margin-top:10px;"><label style="' + labelStyle + '">鉴定备注</label><textarea id="editApprNotes" placeholder="鉴定相关补充说明..." style="' + inputStyle + 'min-height:50px;font-family:inherit;resize:vertical;">' + escHtml(appr.appraisal_notes || '') + '</textarea></div>';
+      html += '</div>';
+
+      // Fee fields
+      html += '<div style="margin-bottom:16px;padding:12px;background:var(--bg);border-radius:8px;">';
+      html += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;">代理费</div>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+      html += '<div><label style="' + labelStyle + '">代理费金额（元）</label><input type="number" id="editAgencyFee" value="' + escHtml(fees.agency_fee || '') + '" placeholder="例：10000" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">结算状态</label>' +
+        '<select id="editSettlementStatus" style="' + inputStyle + '">' +
+        '<option value="">—</option>' +
+        '<option value="未付"' + (fees.settlement_status === '未付' ? ' selected' : '') + '>未付</option>' +
+        '<option value="部分支付"' + (fees.settlement_status === '部分支付' ? ' selected' : '') + '>部分支付</option>' +
+        '<option value="已付"' + (fees.settlement_status === '已付' ? ' selected' : '') + '>已付</option>' +
+        '</select></div>';
+      html += '</div>';
+      html += '<div style="margin-top:10px;"><label style="' + labelStyle + '">结算备注</label><textarea id="editSettlementNotes" placeholder="结算相关补充说明..." style="' + inputStyle + 'min-height:50px;font-family:inherit;resize:vertical;">' + escHtml(fees.settlement_notes || '') + '</textarea></div>';
+      html += '</div>';
+
+      // Remarks
       html += '<div style="margin-bottom:16px;">' +
-        '<label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">备注（诉讼状态、特殊情况等）</label>' +
-        '<textarea id="editNotes" placeholder="补充案件备注信息..." style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;resize:vertical;background:var(--bg);color:var(--text-primary);">' + escHtml(c.remarks || '') + '</textarea>' +
+        '<label style="' + labelStyle + '">备注（诉讼状态、特殊情况等）</label>' +
+        '<textarea id="editNotes" placeholder="补充案件备注信息..." style="' + inputStyle + 'min-height:60px;font-family:inherit;resize:vertical;">' + escHtml(c.remarks || '') + '</textarea>' +
       '</div>';
 
       document.getElementById('caseEditForm').innerHTML = html;
@@ -678,6 +820,30 @@
     if (phone) c.basicInfo.phone = phone.value.trim();
     if (liability) c.accident.liability = liability.value;
     if (remarks) c.remarks = remarks.value.trim();
+
+    // Save team members
+    if (!c.team) c.team = {};
+    var el;
+    el = document.getElementById('editMarketContact'); if (el) c.team.market_contact = el.value.trim();
+    el = document.getElementById('editConsultingLawyer'); if (el) c.team.consulting_lawyer = el.value.trim();
+    el = document.getElementById('editFilingLawyer'); if (el) c.team.filing_lawyer = el.value.trim();
+    el = document.getElementById('editRepresentingLawyer'); if (el) c.team.representing_lawyer = el.value.trim();
+
+    // Save appraisal fields
+    if (!c.appraisal) c.appraisal = {};
+    el = document.getElementById('editDisabilityLevel'); if (el) c.appraisal.disability_level = el.value.trim();
+    el = document.getElementById('editDisabilityDate'); if (el) c.appraisal.disability_date = el.value.trim();
+    el = document.getElementById('editDisabilityInst'); if (el) c.appraisal.disability_institution = el.value.trim();
+    el = document.getElementById('editThreePeriods'); if (el) c.appraisal.three_periods = el.value.trim();
+    el = document.getElementById('editThreePeriodsDate'); if (el) c.appraisal.three_periods_date = el.value.trim();
+    el = document.getElementById('editThreePeriodsInst'); if (el) c.appraisal.three_periods_institution = el.value.trim();
+    el = document.getElementById('editApprNotes'); if (el) c.appraisal.appraisal_notes = el.value.trim();
+
+    // Save fee fields
+    if (!c.fees) c.fees = {};
+    el = document.getElementById('editAgencyFee'); if (el) c.fees.agency_fee = el.value.trim();
+    el = document.getElementById('editSettlementStatus'); if (el) c.fees.settlement_status = el.value;
+    el = document.getElementById('editSettlementNotes'); if (el) c.fees.settlement_notes = el.value.trim();
 
     // Add note if entered
     var noteInput = document.getElementById('caseNoteInput');
@@ -1288,6 +1454,38 @@
         var color = d.urgent ? 'color:#c0534d;font-weight:600;' : '';
         printContent += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #ddd;"><span>' + escHtml(d.item) + '</span><span style="' + color + '">' + escHtml(d.remaining || '') + ' (' + escHtml(d.deadline || '') + ')</span></div>';
       });
+    }
+
+    // Team members (print)
+    var pTeam = c.team || {};
+    if (pTeam.market_contact || pTeam.consulting_lawyer || pTeam.filing_lawyer || pTeam.representing_lawyer) {
+      printContent += '<h2>团队人员</h2>';
+      if (pTeam.market_contact) printContent += '<div class="field"><span class="label">市场接洽人员：</span><span class="value">' + escHtml(pTeam.market_contact) + '</span></div>';
+      if (pTeam.consulting_lawyer) printContent += '<div class="field"><span class="label">谈案律师：</span><span class="value">' + escHtml(pTeam.consulting_lawyer) + '</span></div>';
+      if (pTeam.filing_lawyer) printContent += '<div class="field"><span class="label">立案律师：</span><span class="value">' + escHtml(pTeam.filing_lawyer) + '</span></div>';
+      if (pTeam.representing_lawyer) printContent += '<div class="field"><span class="label">代理律师：</span><span class="value">' + escHtml(pTeam.representing_lawyer) + '</span></div>';
+    }
+
+    // Appraisal (print)
+    var pAppr = c.appraisal || {};
+    if (pAppr.disability_level || pAppr.three_periods) {
+      printContent += '<h2>鉴定信息</h2>';
+      if (pAppr.disability_level) printContent += '<div class="field"><span class="label">伤残鉴定等级：</span><span class="value">' + escHtml(pAppr.disability_level) + '</span></div>';
+      if (pAppr.disability_date) printContent += '<div class="field"><span class="label">伤残鉴定日期：</span><span class="value">' + escHtml(pAppr.disability_date) + '</span></div>';
+      if (pAppr.disability_institution) printContent += '<div class="field"><span class="label">伤残鉴定机构：</span><span class="value">' + escHtml(pAppr.disability_institution) + '</span></div>';
+      if (pAppr.three_periods) printContent += '<div class="field" style="width:100%;"><span class="label">三期鉴定：</span><span class="value">' + escHtml(pAppr.three_periods) + '</span></div>';
+      if (pAppr.three_periods_date) printContent += '<div class="field"><span class="label">三期鉴定日期：</span><span class="value">' + escHtml(pAppr.three_periods_date) + '</span></div>';
+      if (pAppr.three_periods_institution) printContent += '<div class="field"><span class="label">三期鉴定机构：</span><span class="value">' + escHtml(pAppr.three_periods_institution) + '</span></div>';
+      if (pAppr.appraisal_notes) printContent += '<div class="field" style="width:100%;"><span class="label">鉴定备注：</span>' + escHtml(pAppr.appraisal_notes) + '</div>';
+    }
+
+    // Fees (print)
+    var pFees = c.fees || {};
+    if (pFees.agency_fee || pFees.settlement_status) {
+      printContent += '<h2>代理费</h2>';
+      if (pFees.agency_fee) printContent += '<div class="field"><span class="label">代理费金额：</span><span class="value" style="font-weight:700;">' + escHtml(pFees.agency_fee) + ' 元</span></div>';
+      if (pFees.settlement_status) printContent += '<div class="field"><span class="label">结算状态：</span><span class="value">' + escHtml(pFees.settlement_status) + '</span></div>';
+      if (pFees.settlement_notes) printContent += '<div class="field" style="width:100%;"><span class="label">结算备注：</span>' + escHtml(pFees.settlement_notes) + '</div>';
     }
 
     // Notes
