@@ -16,6 +16,7 @@
   var currentDeadlineFilter = 'all';
   var currentLawFilter = 'all';
   var caseSearchQuery = '';
+  var deadlineSearchQuery = '';
 
   // ===== API Integration =====
   function fetchSubmissions() {
@@ -49,7 +50,17 @@
       litigation: submission.sections ? submission.sections.litigation : {},
       materials: submission.sections ? submission.sections.materials : {},
       team: { market_contact: '', consulting_lawyer: '', filing_lawyer: '', representing_lawyer: '' },
-      appraisal: { disability_level: '', disability_date: '', disability_institution: '', three_periods: '', three_periods_date: '', three_periods_institution: '', appraisal_notes: '' },
+      appraisal: {
+        disability_appraisal_status: '', // 伤残鉴定状态: 申请/重新申请/不申请
+        disability_level: '',
+        disability_date: '',
+        disability_institution: '',
+        nursing_appraisal_status: '', // 护理鉴定状态: 申请/重新申请/不申请
+        three_periods: '',
+        three_periods_date: '',
+        three_periods_institution: '',
+        appraisal_notes: ''
+      },
       fees: { agency_fee: '', settlement_status: '', settlement_notes: '' }
     };
 
@@ -90,6 +101,19 @@
       }
       var card = e.target.closest('[data-case-id]');
       if (card) openCaseDetail(card.getAttribute('data-case-id'));
+    });
+
+    // Event delegation for deadline board items (verification click)
+    document.getElementById('deadlineList').addEventListener('click', function(e) {
+      var item = e.target.closest('.deadline-board-item.dv-clickable');
+      if (!item) return;
+      var caseId = item.getAttribute('data-dv-case');
+      var itemName = item.getAttribute('data-dv-item');
+      if (!caseId || !itemName) return;
+      var c = cases.find(function(x) { return x.id === caseId; });
+      if (!c) return;
+      var dlIdx = findDeadlineIndex(c, itemName);
+      if (dlIdx >= 0) showVerifyPopover(caseId, dlIdx);
     });
   }
 
@@ -178,6 +202,9 @@
       if (stored) cases = JSON.parse(stored);
     } catch(e) { cases = []; }
 
+    // Ensure all deadlines have verification sub-objects (backward compat)
+    normalizeAllVerifications();
+
     // Fetch from API and merge
     if (API_ENABLED && API_BASE_URL) {
       fetchSubmissions().then(function(submissions) {
@@ -252,13 +279,15 @@
             },
             // Appraisal fields
             appraisal: {
-              disability_level: '', // 伤残鉴定等级
-              disability_date: '', // 伤残鉴定日期
-              disability_institution: '', // 鉴定机构
-              three_periods: '', // 三期鉴定（误工期/护理期/营养期）
-              three_periods_date: '', // 三期鉴定日期
-              three_periods_institution: '', // 鉴定机构
-              appraisal_notes: '' // 鉴定备注
+              disability_appraisal_status: '', // 伤残鉴定状态: 申请/重新申请/不申请
+              disability_level: '',
+              disability_date: '',
+              disability_institution: '',
+              nursing_appraisal_status: '', // 护理鉴定状态: 申请/重新申请/不申请
+              three_periods: '',
+              three_periods_date: '',
+              three_periods_institution: '',
+              appraisal_notes: ''
             },
             // Fee fields
             fees: {
@@ -335,11 +364,11 @@
     var intake = cases.filter(function(c) { return c.status === 'intake'; }).length;
     var filing = cases.filter(function(c) { return c.status === 'filing' || c.status === 'appraisal'; }).length;
 
-    // Count urgent deadlines
+    // Count urgent deadlines (exclude verified safe/resolved)
     var urgentCount = 0;
     cases.forEach(function(c) {
       (c.deadlines || []).forEach(function(d) {
-        if (d.urgent) urgentCount++;
+        if (d.urgent && getDeadlineVerifyState(d) === 'unverified') urgentCount++;
       });
     });
 
@@ -393,20 +422,37 @@
     var allDeadlines = [];
     cases.forEach(function(c) {
       (c.deadlines || []).forEach(function(d) {
+        normalizeDeadlineVerification(d);
         allDeadlines.push(Object.assign({}, d, { caseId: c.id, caseName: c.basicInfo.name || c.id }));
       });
     });
-    allDeadlines.sort(function(a, b) { return (a.urgent ? 0 : 1) - (b.urgent ? 0 : 1); });
+    // Sort: unverified urgent first, then unverified non-urgent, then verified
+    allDeadlines.sort(function(a, b) {
+      var aState = getDeadlineVerifyState(a);
+      var bState = getDeadlineVerifyState(b);
+      var aActive = aState === 'unverified' && a.urgent;
+      var bActive = bState === 'unverified' && b.urgent;
+      if (aActive !== bActive) return aActive ? -1 : 1;
+      var aVerified = aState !== 'unverified';
+      var bVerified = bState !== 'unverified';
+      if (aVerified !== bVerified) return aVerified ? 1 : -1;
+      return (a.deadline || '').localeCompare(b.deadline || '');
+    });
 
     if (allDeadlines.length === 0) {
       recentDl.innerHTML = '<div class="empty-state" style="padding:24px;"><div class="empty-text" style="font-size:13px;">导入案件后自动计算关键期限</div></div>';
     } else {
       var dlHtml = '';
       allDeadlines.slice(0, 5).forEach(function(d) {
-        var level = d.urgent ? 'danger' : 'safe';
+        var vState = getDeadlineVerifyState(d);
+        var level;
+        if (vState === 'safe' || vState === 'resolved') level = 'safe';
+        else if (vState === 'overdue') level = 'danger';
+        else level = d.urgent ? 'danger' : 'safe';
+        var badgeHtml = getVerifyBadgeHtml(d);
         dlHtml += '<div class="deadline-item">' +
           '<div class="dl-indicator ' + level + '"></div>' +
-          '<div class="dl-info"><div class="dl-title">' + escHtml(d.item) + '</div><div class="dl-legal">' + escHtml(d.caseName) + ' · ' + escHtml(d.legal_basis || '') + '</div></div>' +
+          '<div class="dl-info"><div class="dl-title">' + escHtml(d.item) + ' ' + badgeHtml + '</div><div class="dl-legal">' + escHtml(d.caseName) + ' · ' + escHtml(d.legal_basis || '') + '</div></div>' +
           '<div class="dl-remaining deadline-' + level + '">' + escHtml(d.remaining || '') + '</div>' +
         '</div>';
       });
@@ -435,6 +481,7 @@
           // Team members
           team.market_contact, team.consulting_lawyer, team.filing_lawyer, team.representing_lawyer,
           // Appraisal
+          appr.disability_appraisal_status, appr.nursing_appraisal_status,
           appr.disability_level, appr.disability_institution, appr.three_periods, appr.three_periods_institution,
           appr.appraisal_notes,
           // Fees
@@ -648,16 +695,59 @@
       html += '</div>';
     }
 
-    // Deadlines
+    // Deadlines — mini board inside case detail
     if (c.deadlines && c.deadlines.length > 0) {
+      var urgentDls = c.deadlines.filter(function(d) { return d.urgent && getDeadlineVerifyState(d) === 'unverified'; });
       html += '<div style="margin-bottom:20px;">';
-      html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">关键期限</h4>';
-      c.deadlines.forEach(function(d) {
-        var level = d.urgent ? 'color:var(--danger);' : 'color:var(--text-muted);';
-        html += '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px dashed var(--border);">' +
-          '<span>' + escHtml(d.item) + '</span>' +
-          '<span style="' + level + '">' + escHtml(d.remaining || '') + '</span>' +
-        '</div>';
+      html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">' +
+        '&#9200; 期限看板' +
+        (urgentDls.length > 0 ? ' <span style="background:var(--danger-light);color:var(--danger-text);font-size:11px;padding:2px 8px;border-radius:10px;margin-left:8px;font-weight:500;">' + urgentDls.length + ' 项紧急</span>' : '') +
+        '</h4>';
+      // Sort: urgent first
+      var sortedDls = c.deadlines.slice().sort(function(a, b) {
+        if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
+        return (a.deadline || '').localeCompare(b.deadline || '');
+      });
+      sortedDls.forEach(function(d, dlIdx) {
+        normalizeDeadlineVerification(d);
+        var vState = getDeadlineVerifyState(d);
+        var hasTolling = hasTollingMitigation(d);
+
+        // Determine bar color based on verification state
+        var barColor;
+        if (vState === 'safe') barColor = 'var(--success)';
+        else if (vState === 'overdue' && !hasTolling) barColor = 'var(--danger)';
+        else if (vState === 'overdue' && hasTolling) barColor = 'var(--warning)';
+        else if (vState === 'resolved') barColor = '#9e9e9e';
+        else barColor = d.urgent ? 'var(--danger)' : 'var(--success)';
+
+        var badgeHtml = getVerifyBadgeHtml(d);
+        var clickAttr = ' style="cursor:pointer;" onclick="showVerifyPopover(\'' + escHtml(c.id) + '\',' + dlIdx + ')"';
+
+        html += '<div' + clickAttr + '>';
+        html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;margin-bottom:4px;background:var(--bg);border-left:3px solid ' + barColor + ';' +
+          (vState === 'resolved' ? 'opacity:0.7;' : '') + '">';
+        html += '<div style="flex:1;min-width:0;">';
+        html += '<div style="font-size:13px;font-weight:600;color:var(--text-primary);' +
+          (vState === 'resolved' ? 'text-decoration:line-through;color:var(--text-muted);' : '') + '">' +
+          escHtml(d.item) + ' ' + badgeHtml + '</div>';
+        if (d.legal_basis || d.note) {
+          html += '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + escHtml(d.legal_basis || '') + (d.note ? ' · ' + escHtml(d.note) : '') + '</div>';
+        }
+        html += '</div>';
+        html += '<div style="text-align:right;flex-shrink:0;">';
+        if (vState === 'safe') {
+          html += '<div style="font-size:11px;font-weight:600;color:var(--success);">&#10003; 已核实</div>';
+        } else if (vState === 'overdue' && !hasTolling) {
+          html += '<div style="font-size:11px;font-weight:600;color:var(--danger);">逾期' + (d.verification.overdue_days || 0) + '天</div>';
+        } else if (vState === 'resolved') {
+          html += '<div style="font-size:11px;color:var(--text-muted);">已处理</div>';
+        } else {
+          html += '<div style="font-size:12px;font-weight:600;color:var(--' + (d.urgent ? 'danger' : 'success') + ');">' + escHtml(d.remaining || '') + '</div>';
+        }
+        html += '<div style="font-size:11px;color:var(--text-muted);">' + escHtml(d.deadline || '') + '</div>';
+        html += '</div>';
+        html += '</div></div>';
       });
       html += '</div>';
     }
@@ -675,20 +765,60 @@
       html += '</div></div>';
     }
 
-    // Appraisal info
+    // Appraisal info — judicial appraisal status control panel
     var appr = c.appraisal || {};
-    if (appr.disability_level || appr.three_periods || appr.appraisal_notes) {
+    var dStatus = appr.disability_appraisal_status || '';
+    var nStatus = appr.nursing_appraisal_status || '';
+    var hasApprSection = dStatus || nStatus || appr.disability_level || appr.three_periods || appr.appraisal_notes;
+    if (hasApprSection) {
       html += '<div style="margin-bottom:20px;">';
-      html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">鉴定信息</h4>';
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
-      if (appr.disability_level) html += '<div><span style="color:var(--text-muted);">伤残鉴定等级：</span>' + escHtml(appr.disability_level) + '</div>';
-      if (appr.disability_date) html += '<div><span style="color:var(--text-muted);">伤残鉴定日期：</span>' + escHtml(appr.disability_date) + '</div>';
-      if (appr.disability_institution) html += '<div><span style="color:var(--text-muted);">伤残鉴定机构：</span>' + escHtml(appr.disability_institution) + '</div>';
-      if (appr.three_periods) html += '<div style="grid-column:1/-1;"><span style="color:var(--text-muted);">三期鉴定：</span>' + escHtml(appr.three_periods) + '</div>';
-      if (appr.three_periods_date) html += '<div><span style="color:var(--text-muted);">三期鉴定日期：</span>' + escHtml(appr.three_periods_date) + '</div>';
-      if (appr.three_periods_institution) html += '<div><span style="color:var(--text-muted);">三期鉴定机构：</span>' + escHtml(appr.three_periods_institution) + '</div>';
-      if (appr.appraisal_notes) html += '<div style="grid-column:1/-1;"><span style="color:var(--text-muted);">鉴定备注：</span>' + escHtml(appr.appraisal_notes) + '</div>';
-      html += '</div></div>';
+      html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">申请司法鉴定状态栏</h4>';
+
+      // Status overview badges
+      html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">';
+      var dStatusBadge = dStatus ? (dStatus === '不申请' ? '<span style="background:#f5f5f5;color:#999;padding:2px 10px;border-radius:10px;font-size:12px;">不申请</span>' :
+        dStatus === '申请' ? '<span style="background:#e0f2f1;color:#00695c;padding:2px 10px;border-radius:10px;font-size:12px;">申请</span>' :
+        '<span style="background:#fff3e0;color:#e65100;padding:2px 10px;border-radius:10px;font-size:12px;">重新申请</span>') : '<span style="color:#bbb;font-size:12px;">未设置</span>';
+      var nStatusBadge = nStatus ? (nStatus === '不申请' ? '<span style="background:#f5f5f5;color:#999;padding:2px 10px;border-radius:10px;font-size:12px;">不申请</span>' :
+        nStatus === '申请' ? '<span style="background:#e0f2f1;color:#00695c;padding:2px 10px;border-radius:10px;font-size:12px;">申请</span>' :
+        '<span style="background:#fff3e0;color:#e65100;padding:2px 10px;border-radius:10px;font-size:12px;">重新申请</span>') : '<span style="color:#bbb;font-size:12px;">未设置</span>';
+      html += '<div style="font-size:13px;"><span style="color:var(--text-muted);">伤残鉴定：</span>' + dStatusBadge + '</div>';
+      html += '<div style="font-size:13px;"><span style="color:var(--text-muted);">护理鉴定：</span>' + nStatusBadge + '</div>';
+      html += '</div>';
+
+      // Disability appraisal details (shown when status is 申请 or 重新申请)
+      if (dStatus && dStatus !== '不申请') {
+        html += '<div style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid #00695c;">';
+        html += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">伤残鉴定详情</div>';
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
+        if (appr.disability_level) html += '<div><span style="color:var(--text-muted);">伤残等级：</span>' + escHtml(appr.disability_level) + '</div>';
+        if (appr.disability_date) html += '<div><span style="color:var(--text-muted);">鉴定日期：</span>' + escHtml(appr.disability_date) + '</div>';
+        if (appr.disability_institution) html += '<div><span style="color:var(--text-muted);">鉴定机构：</span>' + escHtml(appr.disability_institution) + '</div>';
+        if (!appr.disability_level && !appr.disability_date && !appr.disability_institution) {
+          html += '<div style="grid-column:1/-1;color:var(--text-muted);font-size:12px;">暂无详情，请在编辑中补充</div>';
+        }
+        html += '</div></div>';
+      }
+
+      // Nursing appraisal details (shown when status is 申请 or 重新申请)
+      if (nStatus && nStatus !== '不申请') {
+        html += '<div style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid #0891b2;">';
+        html += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">护理鉴定（三期鉴定）详情</div>';
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
+        if (appr.three_periods) html += '<div style="grid-column:1/-1;"><span style="color:var(--text-muted);">三期结果：</span>' + escHtml(appr.three_periods) + '</div>';
+        if (appr.three_periods_date) html += '<div><span style="color:var(--text-muted);">鉴定日期：</span>' + escHtml(appr.three_periods_date) + '</div>';
+        if (appr.three_periods_institution) html += '<div><span style="color:var(--text-muted);">鉴定机构：</span>' + escHtml(appr.three_periods_institution) + '</div>';
+        if (!appr.three_periods && !appr.three_periods_date && !appr.three_periods_institution) {
+          html += '<div style="grid-column:1/-1;color:var(--text-muted);font-size:12px;">暂无详情，请在编辑中补充</div>';
+        }
+        html += '</div></div>';
+      }
+
+      // Notes
+      if (appr.appraisal_notes) {
+        html += '<div style="font-size:13px;margin-top:4px;"><span style="color:var(--text-muted);">鉴定备注：</span>' + escHtml(appr.appraisal_notes) + '</div>';
+      }
+      html += '</div>';
     }
 
     // Fee info
@@ -708,16 +838,54 @@
 
     // Notes / follow-up records
     html += '<div style="margin-bottom:20px;">';
-    html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">跟进记录</h4>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:10px;">';
+    html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin:0;">跟进记录</h4>';
+    html += '<button class="btn btn-sm btn-primary" onclick="showQuickNoteForm()" title="添加跟进记录" style="font-size:16px;width:28px;height:28px;padding:0;line-height:1;border-radius:50%;">+</button>';
+    html += '</div>';
+    // Quick note form (hidden by default)
+    html += '<div id="quickNoteForm" style="display:none;background:var(--bg);border-radius:8px;padding:14px;margin-bottom:12px;border:1px solid var(--border);">';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">';
+    html += '<div><label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px;">事件</label><input type="text" id="qnEvent" placeholder="面谈 / 电话 / 补充证据…" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text-primary);"></div>';
+    html += '<div><label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px;">发生时间</label><input type="datetime-local" id="qnOccurTime" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text-primary);"></div>';
+    html += '</div>';
+    html += '<div style="margin-bottom:10px;"><label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px;">详情</label><textarea id="qnDetails" placeholder="记录要点…" style="width:100%;min-height:60px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;resize:vertical;background:var(--surface);color:var(--text-primary);"></textarea></div>';
+    html += '<div style="margin-bottom:10px;"><label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:3px;">下一步待办</label><input type="text" id="qnNextTodo" placeholder="准备起诉状 / 联系保险…" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text-primary);"></div>';
+    html += '<div style="display:flex;gap:8px;">';
+    html += '<button class="btn btn-sm btn-primary" onclick="saveQuickNote()">保存记录</button>';
+    html += '<button class="btn btn-sm btn-ghost" onclick="hideQuickNoteForm()">取消</button>';
+    html += '</div></div>';
+    // Notes list
     if (c.notes && c.notes.length > 0) {
-      c.notes.forEach(function(n) {
-        html += '<div style="background:var(--bg);border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:13px;">' +
-          '<div style="color:var(--text-muted);font-size:11px;margin-bottom:4px;">' + escHtml(n.time || '') + '</div>' +
-          '<div>' + escHtml(n.content || '') + '</div>' +
-        '</div>';
+      html += '<div class="notes-list">';
+      c.notes.forEach(function(n, idx) {
+        var eventLabel = n.event || '';
+        var occurTime = n.occur_time || '';
+        var details = n.content || n.details || '';
+        var nextTodo = n.next_todo || '';
+        var recordTime = n.time || '';
+        html += '<div class="note-item">';
+        html += '<div class="note-item-header">';
+        html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
+        if (eventLabel) {
+          html += '<span class="note-event-tag">' + escHtml(eventLabel) + '</span>';
+        }
+        if (occurTime) {
+          html += '<span style="font-size:12px;color:var(--text-muted);">' + escHtml(occurTime) + '</span>';
+        }
+        html += '</div>';
+        html += '<span style="font-size:11px;color:var(--text-muted);">记录于 ' + escHtml(recordTime) + '</span>';
+        html += '</div>';
+        if (details) {
+          html += '<div class="note-details">' + escHtml(details) + '</div>';
+        }
+        if (nextTodo) {
+          html += '<div class="note-todo"><span class="note-todo-label">待办</span>' + escHtml(nextTodo) + '</div>';
+        }
+        html += '</div>';
       });
+      html += '</div>';
     } else {
-      html += '<div style="font-size:13px;color:var(--text-muted);padding:8px 0;">暂无跟进记录</div>';
+      html += '<div style="font-size:13px;color:var(--text-muted);padding:8px 0;">暂无跟进记录，点击右上角 + 添加</div>';
     }
     html += '</div>';
 
@@ -772,17 +940,46 @@
       html += '<div><label style="' + labelStyle + '">代理律师</label><input type="text" id="editRepresentingLawyer" value="' + escHtml(team.representing_lawyer || '') + '" style="' + inputStyle + '"></div>';
       html += '</div></div>';
 
-      // Appraisal fields
+      // Appraisal fields — judicial appraisal status control
       html += '<div style="margin-bottom:16px;padding:12px;background:var(--bg);border-radius:8px;">';
-      html += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;">鉴定信息</div>';
+      html += '<div style="font-size:13px;font-weight:600;margin-bottom:10px;">申请司法鉴定状态栏</div>';
+
+      // Disability appraisal status + detail fields
+      html += '<div style="margin-bottom:12px;padding:10px;background:var(--surface);border-radius:6px;">';
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">';
+      html += '<span style="font-size:13px;font-weight:500;min-width:70px;">伤残鉴定</span>';
+      html += '<select id="editDisabilityStatus" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;background:var(--bg);color:var(--text-primary);" onchange="toggleAppraisalDetail(\'disability\')">';
+      html += '<option value=""' + (!appr.disability_appraisal_status ? ' selected' : '') + '>未设置</option>';
+      html += '<option value="申请"' + (appr.disability_appraisal_status === '申请' ? ' selected' : '') + '>申请</option>';
+      html += '<option value="重新申请"' + (appr.disability_appraisal_status === '重新申请' ? ' selected' : '') + '>重新申请</option>';
+      html += '<option value="不申请"' + (appr.disability_appraisal_status === '不申请' ? ' selected' : '') + '>不申请</option>';
+      html += '</select></div>';
+      html += '<div id="disabilityDetailFields" style="display:' + (appr.disability_appraisal_status && appr.disability_appraisal_status !== '不申请' ? 'block' : 'none') + ';">';
       html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
-      html += '<div><label style="' + labelStyle + '">伤残鉴定等级</label><input type="text" id="editDisabilityLevel" value="' + escHtml(appr.disability_level || '') + '" placeholder="例：十级" style="' + inputStyle + '"></div>';
-      html += '<div><label style="' + labelStyle + '">伤残鉴定日期</label><input type="date" id="editDisabilityDate" value="' + escHtml(appr.disability_date || '') + '" style="' + inputStyle + '"></div>';
-      html += '<div><label style="' + labelStyle + '">伤残鉴定机构</label><input type="text" id="editDisabilityInst" value="' + escHtml(appr.disability_institution || '') + '" style="' + inputStyle + '"></div>';
-      html += '<div><label style="' + labelStyle + '">三期鉴定（误工/护理/营养期）</label><input type="text" id="editThreePeriods" value="' + escHtml(appr.three_periods || '') + '" placeholder="例：误工120日/护理60日/营养60日" style="' + inputStyle + '"></div>';
-      html += '<div><label style="' + labelStyle + '">三期鉴定日期</label><input type="date" id="editThreePeriodsDate" value="' + escHtml(appr.three_periods_date || '') + '" style="' + inputStyle + '"></div>';
-      html += '<div><label style="' + labelStyle + '">三期鉴定机构</label><input type="text" id="editThreePeriodsInst" value="' + escHtml(appr.three_periods_institution || '') + '" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">伤残等级</label><input type="text" id="editDisabilityLevel" value="' + escHtml(appr.disability_level || '') + '" placeholder="例：十级" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">鉴定日期</label><input type="date" id="editDisabilityDate" value="' + escHtml(appr.disability_date || '') + '" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">鉴定机构</label><input type="text" id="editDisabilityInst" value="' + escHtml(appr.disability_institution || '') + '" style="' + inputStyle + '"></div>';
+      html += '</div></div>';
       html += '</div>';
+
+      // Nursing appraisal status + detail fields
+      html += '<div style="padding:10px;background:var(--surface);border-radius:6px;">';
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">';
+      html += '<span style="font-size:13px;font-weight:500;min-width:70px;">护理鉴定</span>';
+      html += '<select id="editNursingStatus" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;background:var(--bg);color:var(--text-primary);" onchange="toggleAppraisalDetail(\'nursing\')">';
+      html += '<option value=""' + (!appr.nursing_appraisal_status ? ' selected' : '') + '>未设置</option>';
+      html += '<option value="申请"' + (appr.nursing_appraisal_status === '申请' ? ' selected' : '') + '>申请</option>';
+      html += '<option value="重新申请"' + (appr.nursing_appraisal_status === '重新申请' ? ' selected' : '') + '>重新申请</option>';
+      html += '<option value="不申请"' + (appr.nursing_appraisal_status === '不申请' ? ' selected' : '') + '>不申请</option>';
+      html += '</select></div>';
+      html += '<div id="nursingDetailFields" style="display:' + (appr.nursing_appraisal_status && appr.nursing_appraisal_status !== '不申请' ? 'block' : 'none') + ';">';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+      html += '<div><label style="' + labelStyle + '">三期鉴定（误工/护理/营养期）</label><input type="text" id="editThreePeriods" value="' + escHtml(appr.three_periods || '') + '" placeholder="例：误工120日/护理60日/营养60日" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">鉴定日期</label><input type="date" id="editThreePeriodsDate" value="' + escHtml(appr.three_periods_date || '') + '" style="' + inputStyle + '"></div>';
+      html += '<div><label style="' + labelStyle + '">鉴定机构</label><input type="text" id="editThreePeriodsInst" value="' + escHtml(appr.three_periods_institution || '') + '" style="' + inputStyle + '"></div>';
+      html += '</div></div>';
+      html += '</div>';
+
       html += '<div style="margin-top:10px;"><label style="' + labelStyle + '">鉴定备注</label><textarea id="editApprNotes" placeholder="鉴定相关补充说明..." style="' + inputStyle + 'min-height:50px;font-family:inherit;resize:vertical;">' + escHtml(appr.appraisal_notes || '') + '</textarea></div>';
       html += '</div>';
 
@@ -817,6 +1014,23 @@
     }
   }
 
+  // ===== Toggle Appraisal Detail Fields =====
+  function toggleAppraisalDetail(type) {
+    if (type === 'disability') {
+      var sel = document.getElementById('editDisabilityStatus');
+      var fields = document.getElementById('disabilityDetailFields');
+      if (sel && fields) {
+        fields.style.display = (sel.value && sel.value !== '不申请') ? 'block' : 'none';
+      }
+    } else if (type === 'nursing') {
+      var sel = document.getElementById('editNursingStatus');
+      var fields = document.getElementById('nursingDetailFields');
+      if (sel && fields) {
+        fields.style.display = (sel.value && sel.value !== '不申请') ? 'block' : 'none';
+      }
+    }
+  }
+
   function saveCaseEdit() {
     var c = cases.find(function(x) { return x.id === currentCaseId; });
     if (!c) return;
@@ -839,6 +1053,8 @@
 
     // Save appraisal fields
     if (!c.appraisal) c.appraisal = {};
+    el = document.getElementById('editDisabilityStatus'); if (el) c.appraisal.disability_appraisal_status = el.value;
+    el = document.getElementById('editNursingStatus'); if (el) c.appraisal.nursing_appraisal_status = el.value;
     el = document.getElementById('editDisabilityLevel'); if (el) c.appraisal.disability_level = el.value.trim();
     el = document.getElementById('editDisabilityDate'); if (el) c.appraisal.disability_date = el.value.trim();
     el = document.getElementById('editDisabilityInst'); if (el) c.appraisal.disability_institution = el.value.trim();
@@ -853,14 +1069,28 @@
     el = document.getElementById('editSettlementStatus'); if (el) c.fees.settlement_status = el.value;
     el = document.getElementById('editSettlementNotes'); if (el) c.fees.settlement_notes = el.value.trim();
 
-    // Add note if entered
+    // Add note if entered — structured format
+    var noteEvent = document.getElementById('noteEvent');
+    var noteDetails = document.getElementById('noteDetails');
+    var noteOccurTime = document.getElementById('noteOccurTime');
+    var noteNextTodo = document.getElementById('noteNextTodo');
+    // Also check legacy textarea
     var noteInput = document.getElementById('caseNoteInput');
-    if (noteInput && noteInput.value.trim()) {
+
+    var hasStructured = noteEvent && noteEvent.value.trim();
+    var hasLegacy = noteInput && noteInput.value.trim();
+
+    if (hasStructured || hasLegacy) {
       if (!c.notes) c.notes = [];
-      c.notes.unshift({
+      var noteObj = {
         time: new Date().toLocaleString('zh-CN'),
-        content: noteInput.value.trim()
-      });
+        event: noteEvent ? noteEvent.value.trim() : '',
+        occur_time: noteOccurTime ? noteOccurTime.value.replace('T', ' ') : '',
+        details: noteDetails ? noteDetails.value.trim() : '',
+        next_todo: noteNextTodo ? noteNextTodo.value.trim() : '',
+        content: hasLegacy ? noteInput.value.trim() : (noteDetails ? noteDetails.value.trim() : '')
+      };
+      c.notes.unshift(noteObj);
     }
 
     saveCases();
@@ -870,43 +1100,200 @@
     alert('已保存');
   }
 
-  // ===== Deadline List =====
-  function renderDeadlineList() {
-    var allDeadlines = [];
-    cases.forEach(function(c) {
-      (c.deadlines || []).forEach(function(d) {
-        allDeadlines.push(Object.assign({}, d, { caseId: c.id, caseName: c.basicInfo.name || c.id }));
-      });
+  // Quick note form (opened from case detail view without full edit mode)
+  function showQuickNoteForm() {
+    var form = document.getElementById('quickNoteForm');
+    if (form) {
+      form.style.display = 'block';
+      // Auto-fill current time for occurrence time
+      var now = new Date();
+      var pad = function(n) { return n < 10 ? '0' + n : n; };
+      var dtVal = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+      var occurEl = document.getElementById('qnOccurTime');
+      if (occurEl) occurEl.value = dtVal;
+    }
+  }
+
+  function hideQuickNoteForm() {
+    var form = document.getElementById('quickNoteForm');
+    if (form) form.style.display = 'none';
+  }
+
+  function saveQuickNote() {
+    var eventEl = document.getElementById('qnEvent');
+    var detailsEl = document.getElementById('qnDetails');
+    var occurEl = document.getElementById('qnOccurTime');
+    var todoEl = document.getElementById('qnNextTodo');
+
+    var eventVal = eventEl ? eventEl.value.trim() : '';
+    var detailsVal = detailsEl ? detailsEl.value.trim() : '';
+    var occurVal = occurEl ? occurEl.value.replace('T', ' ') : '';
+    var todoVal = todoEl ? todoEl.value.trim() : '';
+
+    if (!eventVal && !detailsVal) {
+      alert('请至少填写事件或详情');
+      return;
+    }
+
+    var c = cases.find(function(x) { return x.id === currentCaseId; });
+    if (!c) return;
+    if (!c.notes) c.notes = [];
+
+    c.notes.unshift({
+      time: new Date().toLocaleString('zh-CN'),
+      event: eventVal,
+      occur_time: occurVal,
+      details: detailsVal,
+      next_todo: todoVal,
+      content: detailsVal || eventVal
     });
 
-    var filtered = allDeadlines;
-    if (currentDeadlineFilter === 'danger') filtered = allDeadlines.filter(function(d) { return d.urgent; });
-    else if (currentDeadlineFilter === 'warn') filtered = allDeadlines.filter(function(d) { return !d.urgent && d.remaining && d.remaining.indexOf('剩余') >= 0; });
-    else if (currentDeadlineFilter === 'safe') filtered = allDeadlines.filter(function(d) { return !d.urgent && (!d.remaining || d.remaining.indexOf('剩余') < 0); });
+    saveCases();
+    renderDashboard();
+    renderCaseList();
+    openCaseDetail(currentCaseId);
+  }
+
+  // ===== Deadline Board (按案件归集看板) =====
+  function renderDeadlineList() {
+    // Build case-grouped deadline data
+    var caseGroups = {};
+    cases.forEach(function(c) {
+      var dls = c.deadlines || [];
+      if (dls.length === 0) return;
+
+      // Apply urgency filter — verified safe/resolved items are no longer "urgent"
+      var filteredDls = dls;
+      if (currentDeadlineFilter === 'danger') {
+        filteredDls = dls.filter(function(d) {
+          return d.urgent && getDeadlineVerifyState(d) === 'unverified';
+        });
+      } else if (currentDeadlineFilter === 'warn') {
+        filteredDls = dls.filter(function(d) { return !d.urgent && d.remaining && d.remaining.indexOf('剩余') >= 0; });
+      } else if (currentDeadlineFilter === 'safe') {
+        filteredDls = dls.filter(function(d) {
+          var vs = getDeadlineVerifyState(d);
+          return vs === 'safe' || vs === 'resolved' || (!d.urgent && (!d.remaining || d.remaining.indexOf('剩余') < 0));
+        });
+      }
+
+      // Apply search filter
+      if (deadlineSearchQuery) {
+        var q = deadlineSearchQuery.toLowerCase();
+        var nameMatch = (c.basicInfo.name || '').toLowerCase().indexOf(q) >= 0;
+        var idMatch = (c.id || '').toLowerCase().indexOf(q) >= 0;
+        if (!nameMatch && !idMatch) return;
+      }
+
+      if (filteredDls.length === 0) return;
+
+      var urgentCount = filteredDls.filter(function(d) {
+        return d.urgent && getDeadlineVerifyState(d) === 'unverified';
+      }).length;
+      caseGroups[c.id] = {
+        caseId: c.id,
+        caseName: c.basicInfo.name || c.id,
+        status: c.status,
+        deadlines: filteredDls,
+        urgentCount: urgentCount
+      };
+    });
 
     var listDiv = document.getElementById('deadlineList');
-    if (filtered.length === 0) {
+    var groupKeys = Object.keys(caseGroups);
+
+    if (groupKeys.length === 0) {
       listDiv.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9200;</div><div class="empty-text">暂无期限数据</div></div>';
       return;
     }
 
-    var html = '';
-    filtered.forEach(function(d) {
-      var level = d.urgent ? 'danger' : 'safe';
-      html += '<div class="deadline-item">' +
-        '<div class="dl-indicator ' + level + '"></div>' +
-        '<div class="dl-info">' +
-          '<div class="dl-title">' + escHtml(d.item) + '</div>' +
-          '<div class="dl-legal">' + escHtml(d.caseName) + ' · ' + escHtml(d.legal_basis || '') + '</div>' +
-          '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">' + escHtml(d.note || '') + '</div>' +
-        '</div>' +
-        '<div class="dl-remaining">' +
-          '<div class="deadline-' + level + '">' + escHtml(d.deadline || '') + '</div>' +
-          '<div class="deadline-label">' + escHtml(d.remaining || '') + '</div>' +
-        '</div>' +
-      '</div>';
+    // Sort cases: most urgent deadlines first
+    groupKeys.sort(function(a, b) {
+      return caseGroups[b].urgentCount - caseGroups[a].urgentCount ||
+        caseGroups[a].caseName.localeCompare(caseGroups[b].caseName);
     });
+
+    var html = '';
+    groupKeys.forEach(function(caseId) {
+      var grp = caseGroups[caseId];
+      var statusBadge = getStatusBadge(grp.status);
+
+      html += '<div class="deadline-case-card">';
+      // Header — clickable to open case detail
+      html += '<div class="deadline-case-header" onclick="openCaseDetail(\'' + escHtml(caseId) + '\')">';
+      html += '<div><div class="deadline-case-name">' + escHtml(grp.caseName) + '</div>';
+      html += '<div class="deadline-case-id">' + escHtml(caseId) + ' ' + statusBadge + '</div></div>';
+      html += '<div class="deadline-case-count">';
+      if (grp.urgentCount > 0) {
+        html += '<span class="deadline-count-badge urgent">' + grp.urgentCount + ' 紧急</span>';
+      }
+      html += '<span class="deadline-count-badge normal">' + grp.deadlines.length + ' 项</span>';
+      html += '</div></div>';
+
+      // Body — deadline items
+      html += '<div class="deadline-case-body">';
+      // Sort deadlines: urgent first, then by deadline date
+      grp.deadlines.sort(function(a, b) {
+        if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
+        return (a.deadline || '').localeCompare(b.deadline || '');
+      });
+      grp.deadlines.forEach(function(d) {
+        normalizeDeadlineVerification(d);
+        var vState = getDeadlineVerifyState(d);
+        var hasTolling = hasTollingMitigation(d);
+
+        // Determine visual level based on verification state
+        var level;
+        var stateClass = '';
+        if (vState === 'safe') {
+          level = 'safe';
+          stateClass = ' dv-verified-safe';
+        } else if (vState === 'overdue' && !hasTolling) {
+          level = 'danger';
+          stateClass = ' dv-verified-overdue';
+        } else if (vState === 'overdue' && hasTolling) {
+          level = 'warn';
+          stateClass = ' dv-verified-tolling';
+        } else if (vState === 'resolved') {
+          level = 'safe';
+          stateClass = ' dv-verified-resolved';
+        } else {
+          // unverified
+          level = d.urgent ? 'danger' : 'safe';
+        }
+
+        // Build verification badge
+        var badgeHtml = getVerifyBadgeHtml(d);
+
+        html += '<div class="deadline-board-item dv-clickable' + stateClass + '" data-dv-case="' + escHtml(caseId) + '" data-dv-item="' + escHtml(d.item) + '">';
+        html += '<div class="deadline-board-indicator dl-indicator ' + level + '"></div>';
+        html += '<div class="deadline-board-info">';
+        html += '<div class="deadline-board-title">' + escHtml(d.item) + ' ' + badgeHtml + '</div>';
+        html += '<div class="deadline-board-legal">' + escHtml(d.legal_basis || '') + (d.note ? ' · ' + escHtml(d.note) : '') + '</div>';
+        html += '</div>';
+        html += '<div class="deadline-board-remaining">';
+        if (vState === 'safe') {
+          html += '<div style="color:var(--success);font-size:11px;">&#10003; 已核实</div>';
+        } else if (vState === 'overdue' && !hasTolling) {
+          html += '<div style="color:var(--danger);font-size:11px;">逾期' + (d.verification.overdue_days || 0) + '天</div>';
+        } else if (vState === 'resolved') {
+          html += '<div style="color:var(--text-muted);font-size:11px;">已处理</div>';
+        } else {
+          html += '<div class="deadline-' + level + '">' + escHtml(d.remaining || '') + '</div>';
+        }
+        html += '<div class="deadline-board-deadline">' + escHtml(d.deadline || '') + '</div>';
+        html += '</div>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+
     listDiv.innerHTML = html;
+  }
+
+  function filterDeadlineBoard(query) {
+    deadlineSearchQuery = query.trim();
+    renderDeadlineList();
   }
 
   function filterDeadlines(filter, btn) {
@@ -914,6 +1301,496 @@
     document.querySelectorAll('#deadlineFilters .filter-tab').forEach(function(t) { t.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     renderDeadlineList();
+  }
+
+  // ===== Deadline Verification System =====
+
+  // Backward-compatible: ensure every deadline has a verification sub-object
+  function normalizeDeadlineVerification(dl) {
+    if (!dl) return dl;
+    if (!dl.verification) {
+      dl.verification = {
+        status: '',           // '' | 'safe' | 'overdue' | 'resolved'
+        actual_date: '',      // YYYY-MM-DD
+        verified_at: '',      // ISO timestamp
+        resolution: '',       // 'personal_applied' | 'personal_submitted'
+        resolution_note: '',
+        tolling: {
+          suspension: false,  // 诉讼时效中止 §194
+          interruption: false // 诉讼时效中断 §195
+        },
+        tolling_note: ''
+      };
+    }
+    if (!dl.verification.tolling) {
+      dl.verification.tolling = { suspension: false, interruption: false };
+    }
+    return dl;
+  }
+
+  // Normalize all deadlines in all cases (called on load)
+  function normalizeAllVerifications() {
+    cases.forEach(function(c) {
+      (c.deadlines || []).forEach(normalizeDeadlineVerification);
+    });
+  }
+
+  // Calculate days between two YYYY-MM-DD dates
+  function daysBetween(dateStr1, dateStr2) {
+    var d1 = new Date(dateStr1 + 'T00:00:00');
+    var d2 = new Date(dateStr2 + 'T00:00:00');
+    return Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+  }
+
+  // Extract the accident date from a case
+  function getAccidentDate(c) {
+    return (c.accident && c.accident.date) || '';
+  }
+
+  // Verify a deadline item (Flow A: civil litigation / general date verification)
+  function verifyDeadline(caseId, dlIndex, actualDate) {
+    var c = cases.find(function(x) { return x.id === caseId; });
+    if (!c || !c.deadlines || !c.deadlines[dlIndex]) return;
+
+    var dl = c.deadlines[dlIndex];
+    normalizeDeadlineVerification(dl);
+
+    var accDate = getAccidentDate(c);
+    var deadlineDate = dl.deadline || '';
+
+    // Determine if overdue: compare actual_date against the deadline date
+    if (actualDate && deadlineDate) {
+      var diff = daysBetween(deadlineDate, actualDate);
+      if (diff > 0) {
+        // Actual date is after the deadline → overdue
+        dl.verification.status = 'overdue';
+        dl.verification.overdue_days = diff;
+      } else {
+        // On time or early
+        dl.verification.status = 'safe';
+        dl.verification.ahead_days = Math.abs(diff);
+      }
+    } else if (actualDate) {
+      // No deadline date to compare, just mark as safe
+      dl.verification.status = 'safe';
+    }
+
+    dl.verification.actual_date = actualDate;
+    dl.verification.verified_at = new Date().toISOString();
+
+    saveCases();
+    return dl.verification;
+  }
+
+  // Resolve work injury cascade (Flow B: unit deadline overdue → personal application)
+  function resolveWorkInjuryCascade(caseId, dlIndex, resolution, note) {
+    var c = cases.find(function(x) { return x.id === caseId; });
+    if (!c || !c.deadlines || !c.deadlines[dlIndex]) return;
+
+    var dl = c.deadlines[dlIndex];
+    normalizeDeadlineVerification(dl);
+
+    dl.verification.status = 'resolved';
+    dl.verification.resolution = resolution; // 'personal_applied' | 'personal_submitted'
+    dl.verification.resolution_note = note || '';
+    dl.verification.verified_at = new Date().toISOString();
+
+    // Also mark the related personal application deadline as "关联处理"
+    var itemName = dl.item || '';
+    if (itemName.indexOf('单位申请') >= 0) {
+      // Find the personal application deadline
+      c.deadlines.forEach(function(d, i) {
+        if (i !== dlIndex && d.item && d.item.indexOf('个人申请') >= 0) {
+          normalizeDeadlineVerification(d);
+          d.verification.status = 'resolved';
+          d.verification.resolution = 'linked';
+          d.verification.resolution_note = '已由单位申请关联处理';
+          d.verification.verified_at = new Date().toISOString();
+        }
+      });
+    }
+
+    saveCases();
+    return dl.verification;
+  }
+
+  // Set tolling flags (诉讼时效中止/中断)
+  function setTollingFlags(caseId, dlIndex, flags, note) {
+    var c = cases.find(function(x) { return x.id === caseId; });
+    if (!c || !c.deadlines || !c.deadlines[dlIndex]) return;
+
+    var dl = c.deadlines[dlIndex];
+    normalizeDeadlineVerification(dl);
+
+    if (flags.suspension !== undefined) dl.verification.tolling.suspension = flags.suspension;
+    if (flags.interruption !== undefined) dl.verification.tolling.interruption = flags.interruption;
+    if (note !== undefined) dl.verification.tolling_note = note;
+
+    // If any tolling flag is set, status becomes 'resolved' (mitigated)
+    if (dl.verification.tolling.suspension || dl.verification.tolling.interruption) {
+      dl.verification.status = 'resolved';
+    }
+
+    saveCases();
+    return dl.verification;
+  }
+
+  // Get the display state for a deadline item
+  function getDeadlineVerifyState(dl) {
+    if (!dl) return 'unverified';
+    normalizeDeadlineVerification(dl);
+    var v = dl.verification;
+    if (!v.status) return 'unverified';
+    return v.status; // 'safe' | 'overdue' | 'resolved'
+  }
+
+  // Check if a deadline has tolling mitigation
+  function hasTollingMitigation(dl) {
+    if (!dl || !dl.verification || !dl.verification.tolling) return false;
+    return dl.verification.tolling.suspension || dl.verification.tolling.interruption;
+  }
+
+  // Get verification badge HTML for a deadline
+  function getVerifyBadgeHtml(dl) {
+    var state = getDeadlineVerifyState(dl);
+    if (state === 'unverified') {
+      return '<span class="dv-badge dv-badge-pending">待核实</span>';
+    } else if (state === 'safe') {
+      return '<span class="dv-badge dv-badge-safe">&#10003; 已核实</span>';
+    } else if (state === 'overdue') {
+      if (hasTollingMitigation(dl)) {
+        var basis = [];
+        if (dl.verification.tolling.suspension) basis.push('中止');
+        if (dl.verification.tolling.interruption) basis.push('中断');
+        return '<span class="dv-badge dv-badge-tolling">&#9888; ' + basis.join('/') + '</span>';
+      }
+      var days = dl.verification.overdue_days || 0;
+      return '<span class="dv-badge dv-badge-overdue">&#10007; 逾期' + days + '天</span>';
+    } else if (state === 'resolved') {
+      if (dl.verification.resolution === 'linked') {
+        return '<span class="dv-badge dv-badge-resolved">&#128279; 关联处理</span>';
+      }
+      if (dl.verification.resolution === 'personal_applied') {
+        return '<span class="dv-badge dv-badge-resolved">&#10003; 已个人申请</span>';
+      }
+      if (dl.verification.resolution === 'personal_submitted') {
+        return '<span class="dv-badge dv-badge-resolved">&#10003; 已提交申请</span>';
+      }
+      if (dl.verification.resolution === 'accepted') {
+        return '<span class="dv-badge dv-badge-resolved">&#10003; 认可认定</span>';
+      }
+      if (hasTollingMitigation(dl)) {
+        var basis2 = [];
+        if (dl.verification.tolling.suspension) basis2.push('中止');
+        if (dl.verification.tolling.interruption) basis2.push('中断');
+        return '<span class="dv-badge dv-badge-tolling">&#9888; ' + basis2.join('/') + '</span>';
+      }
+      return '<span class="dv-badge dv-badge-resolved">&#10003; 已解决</span>';
+    }
+    return '';
+  }
+
+  // Find the deadline index within a case's deadlines array by item name
+  function findDeadlineIndex(c, itemName) {
+    if (!c || !c.deadlines) return -1;
+    for (var i = 0; i < c.deadlines.length; i++) {
+      if (c.deadlines[i].item === itemName) return i;
+    }
+    return -1;
+  }
+
+  // ===== Deadline Verification Popover UI =====
+
+  // Show the verification popover for a specific deadline
+  function showVerifyPopover(caseId, dlIndex) {
+    var c = cases.find(function(x) { return x.id === caseId; });
+    if (!c || !c.deadlines || !c.deadlines[dlIndex]) return;
+
+    var dl = c.deadlines[dlIndex];
+    normalizeDeadlineVerification(dl);
+
+    var container = document.getElementById('deadlineVerifyPopover');
+    if (!container) return;
+
+    var html = '<div class="dv-popover-backdrop" onclick="if(event.target===this)hideVerifyPopover()">';
+    html += '<div class="dv-popover">';
+    html += renderPopoverContent(c, dl, dlIndex);
+    html += '</div></div>';
+
+    container.innerHTML = html;
+    container.style.display = 'block';
+
+    // ESC to close
+    document.addEventListener('keydown', _dvEscHandler);
+  }
+
+  function _dvEscHandler(e) {
+    if (e.key === 'Escape') hideVerifyPopover();
+  }
+
+  function hideVerifyPopover() {
+    var container = document.getElementById('deadlineVerifyPopover');
+    if (container) {
+      container.style.display = 'none';
+      container.innerHTML = '';
+    }
+    document.removeEventListener('keydown', _dvEscHandler);
+
+    // Re-render to reflect any changes
+    renderDeadlineList();
+    if (currentCaseId) openCaseDetail(currentCaseId);
+  }
+
+  // Render popover content based on deadline type and current state
+  function renderPopoverContent(c, dl, dlIndex) {
+    var v = dl.verification;
+    var itemName = dl.item || '';
+    var state = v.status || '';
+
+    var html = '<div class="dv-popover-header">';
+    html += '<h4>&#128269; 核实：' + escHtml(itemName) + '</h4>';
+    html += '<button class="dv-popover-close" onclick="hideVerifyPopover()">&times;</button>';
+    html += '</div>';
+    html += '<div class="dv-popover-body">';
+
+    // Info rows
+    html += '<div class="dv-info-row"><strong>法定期限：</strong>' + escHtml(dl.deadline || '未设定') +
+      (dl.remaining ? '（' + escHtml(dl.remaining) + '）' : '') + '</div>';
+    if (dl.legal_basis) {
+      html += '<div class="dv-info-row"><strong>法律依据：</strong>' + escHtml(dl.legal_basis) + '</div>';
+    }
+
+    // Determine flow type
+    var isWorkInjuryUnit = itemName.indexOf('工伤认定') >= 0 && itemName.indexOf('单位') >= 0;
+    var isWorkInjuryPersonal = itemName.indexOf('工伤认定') >= 0 && itemName.indexOf('个人') >= 0;
+    var isLitigation = itemName.indexOf('民事诉讼') >= 0;
+    var isAccidentReview = itemName.indexOf('交通事故认定复核') >= 0;
+
+    // If already verified, show current status first
+    if (state === 'safe') {
+      html += '<div class="dv-result dv-result-safe">';
+      html += '&#10003; 已核实：在法定期限内完成';
+      if (v.ahead_days) html += '（提前' + v.ahead_days + '天）';
+      if (v.actual_date) html += '<br>实际完成日期：' + escHtml(v.actual_date);
+      html += '</div>';
+      html += '<div class="dv-popover-actions">';
+      html += '<button class="btn btn-ghost" onclick="hideVerifyPopover()">关闭</button>';
+      html += '<button class="btn btn-secondary" onclick="resetVerify(\'' + escHtml(c.id) + '\',' + dlIndex + ')">重新核验</button>';
+      html += '</div>';
+    } else if (state === 'overdue' && !hasTollingMitigation(dl)) {
+      html += '<div class="dv-result dv-result-overdue">';
+      html += '&#10007; 逾期' + (v.overdue_days || 0) + '天，有诉讼时效届满风险';
+      if (v.actual_date) html += '<br>实际完成日期：' + escHtml(v.actual_date);
+      html += '</div>';
+      // Show tolling options
+      html += renderTollingSection(c, dl, dlIndex);
+    } else if (state === 'resolved') {
+      if (v.resolution === 'linked') {
+        html += '<div class="dv-result dv-result-resolved">&#128279; 已关联处理（由单位申请关联）</div>';
+      } else if (v.resolution === 'personal_applied') {
+        html += '<div class="dv-result dv-result-resolved">&#10003; 已通过个人申请解决</div>';
+      } else if (v.resolution === 'personal_submitted') {
+        html += '<div class="dv-result dv-result-resolved">&#10003; 个人申请已提交</div>';
+      } else if (v.resolution === 'accepted') {
+        html += '<div class="dv-result dv-result-resolved">&#10003; 认可认定结果，不申请复核</div>';
+      } else if (hasTollingMitigation(dl)) {
+        var basis = [];
+        if (v.tolling.suspension) basis.push('诉讼时效中止（§194）');
+        if (v.tolling.interruption) basis.push('诉讼时效中断（§195）');
+        html += '<div class="dv-result dv-result-tolling">&#9888; 存在' + basis.join('、') + '事由</div>';
+        if (v.tolling_note) {
+          html += '<div class="dv-info-row"><strong>事由说明：</strong>' + escHtml(v.tolling_note) + '</div>';
+        }
+      } else {
+        html += '<div class="dv-result dv-result-resolved">&#10003; 已解决</div>';
+      }
+      html += '<div class="dv-popover-actions">';
+      html += '<button class="btn btn-ghost" onclick="hideVerifyPopover()">关闭</button>';
+      html += '<button class="btn btn-secondary" onclick="resetVerify(\'' + escHtml(c.id) + '\',' + dlIndex + ')">重新核验</button>';
+      html += '</div>';
+    } else {
+      // Unverified — show input form
+      if (isWorkInjuryUnit) {
+        html += renderWorkInjuryUnitForm(c, dl, dlIndex);
+      } else if (isAccidentReview) {
+        html += renderAccidentReviewForm(c, dl, dlIndex);
+      } else {
+        html += renderDateVerifyForm(c, dl, dlIndex);
+      }
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  // Flow A: Date verification form (for 提起民事诉讼 and other general deadlines)
+  function renderDateVerifyForm(c, dl, dlIndex) {
+    var html = '';
+    html += '<div style="margin-top:16px;">';
+    html += '<label style="font-size:13px;color:var(--text-muted);display:block;margin-bottom:4px;">实际完成日期</label>';
+    html += '<input class="dv-date-input" type="date" id="dvActualDate" value="">';
+    html += '</div>';
+    html += '<div class="dv-popover-actions">';
+    html += '<button class="btn btn-ghost" onclick="hideVerifyPopover()">取消</button>';
+    html += '<button class="btn btn-primary" onclick="handleVerifySubmit(\'' + escHtml(c.id) + '\',' + dlIndex + ')">提交核实</button>';
+    html += '</div>';
+    return html;
+  }
+
+  // Flow B: Work injury unit cascade form
+  function renderWorkInjuryUnitForm(c, dl, dlIndex) {
+    var html = '';
+    var isOverdue = dl.urgent || false;
+    if (isOverdue) {
+      html += '<div class="dv-result dv-result-overdue" style="margin-top:12px;">';
+      html += '&#9888; 单位申请期限已逾期';
+      html += '</div>';
+    }
+    html += '<div style="margin-top:16px;">';
+    html += '<label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px;">请选择处理方式：</label>';
+    html += '<div class="dv-cascade-options">';
+    html += '<label><input type="radio" name="dvCascade" value="personal_applied"><span>已通过个人申请</span></label>';
+    html += '<label><input type="radio" name="dvCascade" value="personal_submitted"><span>个人申请已提交</span></label>';
+    html += '</div>';
+    html += '<textarea class="dv-tolling-note" id="dvCascadeNote" placeholder="备注说明（可选）"></textarea>';
+    html += '</div>';
+    html += '<div class="dv-popover-actions">';
+    html += '<button class="btn btn-ghost" onclick="hideVerifyPopover()">取消</button>';
+    html += '<button class="btn btn-primary" onclick="handleCascadeResolve(\'' + escHtml(c.id) + '\',' + dlIndex + ')">确认</button>';
+    html += '</div>';
+    return html;
+  }
+
+  // Flow C: Accident review — accept result, no review application
+  function renderAccidentReviewForm(c, dl, dlIndex) {
+    var html = '';
+    html += '<div style="margin-top:16px;">';
+    html += '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">';
+    html += '如认可交通事故认定结果，可确认不申请复核。';
+    html += '</div>';
+    html += '</div>';
+    html += '<div class="dv-popover-actions">';
+    html += '<button class="btn btn-ghost" onclick="hideVerifyPopover()">取消</button>';
+    html += '<button class="btn btn-primary" onclick="handleAccidentReviewConfirm(\'' + escHtml(c.id) + '\',' + dlIndex + ')">认可认定结果，不申请复核</button>';
+    html += '</div>';
+    return html;
+  }
+
+  // Tolling section (shown when overdue for litigation-type deadlines)
+  function renderTollingSection(c, dl, dlIndex) {
+    var html = '';
+    html += '<div style="margin-top:12px;font-size:13px;color:var(--text-secondary);margin-bottom:8px;">进一步核实有无诉讼时效中止、中断事由：</div>';
+    html += '<div class="dv-tolling-group">';
+    html += '<label>';
+    html += '<input type="checkbox" id="dvTollingSuspension">';
+    html += '<div><span>存在诉讼时效中止事由</span>';
+    html += '<div class="dv-tolling-legal">《民法典》第194条 — 不可抗力等障碍导致无法行使请求权</div></div>';
+    html += '</label>';
+    html += '<label>';
+    html += '<input type="checkbox" id="dvTollingInterruption">';
+    html += '<div><span>存在诉讼时效中断事由</span>';
+    html += '<div class="dv-tolling-legal">《民法典》第195条 — 权利人主张权利或义务人同意履行</div></div>';
+    html += '</label>';
+    html += '</div>';
+    html += '<textarea class="dv-tolling-note" id="dvTollingNote" placeholder="事由说明（可选）"></textarea>';
+    html += '<div class="dv-popover-actions">';
+    html += '<button class="btn btn-ghost" onclick="hideVerifyPopover()">取消</button>';
+    html += '<button class="btn btn-primary" onclick="handleTollingSubmit(\'' + escHtml(c.id) + '\',' + dlIndex + ')">确认知悉</button>';
+    html += '</div>';
+    return html;
+  }
+
+  // Handle Flow A: submit date verification
+  function handleVerifySubmit(caseId, dlIndex) {
+    var dateInput = document.getElementById('dvActualDate');
+    if (!dateInput || !dateInput.value) {
+      alert('请输入实际完成日期');
+      return;
+    }
+
+    var result = verifyDeadline(caseId, dlIndex, dateInput.value);
+    if (!result) return;
+
+    // Re-render the popover to show result
+    showVerifyPopover(caseId, dlIndex);
+  }
+
+  // Handle Flow B: resolve work injury cascade
+  function handleCascadeResolve(caseId, dlIndex) {
+    var radios = document.querySelectorAll('input[name="dvCascade"]');
+    var selected = '';
+    radios.forEach(function(r) { if (r.checked) selected = r.value; });
+
+    if (!selected) {
+      alert('请选择处理方式');
+      return;
+    }
+
+    var note = '';
+    var noteEl = document.getElementById('dvCascadeNote');
+    if (noteEl) note = noteEl.value.trim();
+
+    resolveWorkInjuryCascade(caseId, dlIndex, selected, note);
+    hideVerifyPopover();
+  }
+
+  // Handle Flow C: accept accident review result, no review application
+  function handleAccidentReviewConfirm(caseId, dlIndex) {
+    var c = cases.find(function(x) { return x.id === caseId; });
+    if (!c || !c.deadlines || !c.deadlines[dlIndex]) return;
+
+    var dl = c.deadlines[dlIndex];
+    dl.verification.status = 'resolved';
+    dl.verification.resolution = 'accepted';
+    dl.verification.verified_at = new Date().toISOString();
+    dl.urgent = false;
+
+    saveCases();
+    hideVerifyPopover();
+  }
+
+  // Handle tolling submission
+  function handleTollingSubmit(caseId, dlIndex) {
+    var suspension = false;
+    var interruption = false;
+    var suspEl = document.getElementById('dvTollingSuspension');
+    var intEl = document.getElementById('dvTollingInterruption');
+    if (suspEl) suspension = suspEl.checked;
+    if (intEl) interruption = intEl.checked;
+
+    if (!suspension && !interruption) {
+      alert('请至少选择一项中止/中断事由，或关闭弹窗');
+      return;
+    }
+
+    var note = '';
+    var noteEl = document.getElementById('dvTollingNote');
+    if (noteEl) note = noteEl.value.trim();
+
+    setTollingFlags(caseId, dlIndex, { suspension: suspension, interruption: interruption }, note);
+    hideVerifyPopover();
+  }
+
+  // Reset verification for a deadline
+  function resetVerify(caseId, dlIndex) {
+    var c = cases.find(function(x) { return x.id === caseId; });
+    if (!c || !c.deadlines || !c.deadlines[dlIndex]) return;
+
+    var dl = c.deadlines[dlIndex];
+    dl.verification = {
+      status: '',
+      actual_date: '',
+      verified_at: '',
+      resolution: '',
+      resolution_note: '',
+      tolling: { suspension: false, interruption: false },
+      tolling_note: ''
+    };
+    dl.verification.overdue_days = 0;
+    dl.verification.ahead_days = 0;
+
+    saveCases();
+    showVerifyPopover(caseId, dlIndex);
   }
 
   // ===== Legal Search =====
@@ -1459,8 +2336,17 @@
     if (c.deadlines && c.deadlines.length > 0) {
       printContent += '<h2>关键期限</h2>';
       c.deadlines.forEach(function(d) {
-        var color = d.urgent ? 'color:#c0534d;font-weight:600;' : '';
-        printContent += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #ddd;"><span>' + escHtml(d.item) + '</span><span style="' + color + '">' + escHtml(d.remaining || '') + ' (' + escHtml(d.deadline || '') + ')</span></div>';
+        normalizeDeadlineVerification(d);
+        var vState = getDeadlineVerifyState(d);
+        var hasTolling = hasTollingMitigation(d);
+        var color = '';
+        var statusText = '';
+        if (vState === 'safe') { color = 'color:#2d7a4c;'; statusText = ' ✓ 已核实'; }
+        else if (vState === 'overdue' && !hasTolling) { color = 'color:#c0534d;font-weight:600;'; statusText = ' ✗ 逾期' + (d.verification.overdue_days || 0) + '天'; }
+        else if (vState === 'overdue' && hasTolling) { color = 'color:#b8860b;'; statusText = ' ⚠ 中止/中断'; }
+        else if (vState === 'resolved') { color = 'color:#888;'; statusText = ' ✓ 已处理'; }
+        else if (d.urgent) { color = 'color:#c0534d;font-weight:600;'; }
+        printContent += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #ddd;"><span>' + escHtml(d.item) + '<span style="font-size:11px;color:#888;">' + statusText + '</span></span><span style="' + color + '">' + escHtml(d.remaining || '') + ' (' + escHtml(d.deadline || '') + ')</span></div>';
       });
     }
 
@@ -1474,16 +2360,33 @@
       if (pTeam.representing_lawyer) printContent += '<div class="field"><span class="label">代理律师：</span><span class="value">' + escHtml(pTeam.representing_lawyer) + '</span></div>';
     }
 
-    // Appraisal (print)
+    // Appraisal (print) — judicial appraisal status control panel
     var pAppr = c.appraisal || {};
-    if (pAppr.disability_level || pAppr.three_periods) {
-      printContent += '<h2>鉴定信息</h2>';
-      if (pAppr.disability_level) printContent += '<div class="field"><span class="label">伤残鉴定等级：</span><span class="value">' + escHtml(pAppr.disability_level) + '</span></div>';
-      if (pAppr.disability_date) printContent += '<div class="field"><span class="label">伤残鉴定日期：</span><span class="value">' + escHtml(pAppr.disability_date) + '</span></div>';
-      if (pAppr.disability_institution) printContent += '<div class="field"><span class="label">伤残鉴定机构：</span><span class="value">' + escHtml(pAppr.disability_institution) + '</span></div>';
-      if (pAppr.three_periods) printContent += '<div class="field" style="width:100%;"><span class="label">三期鉴定：</span><span class="value">' + escHtml(pAppr.three_periods) + '</span></div>';
-      if (pAppr.three_periods_date) printContent += '<div class="field"><span class="label">三期鉴定日期：</span><span class="value">' + escHtml(pAppr.three_periods_date) + '</span></div>';
-      if (pAppr.three_periods_institution) printContent += '<div class="field"><span class="label">三期鉴定机构：</span><span class="value">' + escHtml(pAppr.three_periods_institution) + '</span></div>';
+    var pDStatus = pAppr.disability_appraisal_status || '';
+    var pNStatus = pAppr.nursing_appraisal_status || '';
+    if (pDStatus || pNStatus || pAppr.disability_level || pAppr.three_periods || pAppr.appraisal_notes) {
+      printContent += '<h2>申请司法鉴定状态栏</h2>';
+      printContent += '<div style="margin-bottom:8px;"><span class="label">伤残鉴定：</span><span class="value">' + (pDStatus || '未设置') + '</span></div>';
+      printContent += '<div style="margin-bottom:8px;"><span class="label">护理鉴定：</span><span class="value">' + (pNStatus || '未设置') + '</span></div>';
+
+      if (pDStatus && pDStatus !== '不申请') {
+        printContent += '<div style="background:#f0f7f2;border-radius:6px;padding:10px;margin:8px 0;border-left:3px solid #4a8c6f;">';
+        printContent += '<strong style="font-size:13px;">伤残鉴定详情</strong><br>';
+        if (pAppr.disability_level) printContent += '<div class="field"><span class="label">伤残等级：</span><span class="value">' + escHtml(pAppr.disability_level) + '</span></div>';
+        if (pAppr.disability_date) printContent += '<div class="field"><span class="label">鉴定日期：</span><span class="value">' + escHtml(pAppr.disability_date) + '</span></div>';
+        if (pAppr.disability_institution) printContent += '<div class="field"><span class="label">鉴定机构：</span><span class="value">' + escHtml(pAppr.disability_institution) + '</span></div>';
+        printContent += '</div>';
+      }
+
+      if (pNStatus && pNStatus !== '不申请') {
+        printContent += '<div style="background:#e8f4fd;border-radius:6px;padding:10px;margin:8px 0;border-left:3px solid #0891b2;">';
+        printContent += '<strong style="font-size:13px;">护理鉴定（三期鉴定）详情</strong><br>';
+        if (pAppr.three_periods) printContent += '<div class="field" style="width:100%;"><span class="label">三期结果：</span><span class="value">' + escHtml(pAppr.three_periods) + '</span></div>';
+        if (pAppr.three_periods_date) printContent += '<div class="field"><span class="label">鉴定日期：</span><span class="value">' + escHtml(pAppr.three_periods_date) + '</span></div>';
+        if (pAppr.three_periods_institution) printContent += '<div class="field"><span class="label">鉴定机构：</span><span class="value">' + escHtml(pAppr.three_periods_institution) + '</span></div>';
+        printContent += '</div>';
+      }
+
       if (pAppr.appraisal_notes) printContent += '<div class="field" style="width:100%;"><span class="label">鉴定备注：</span>' + escHtml(pAppr.appraisal_notes) + '</div>';
     }
 
@@ -1500,7 +2403,19 @@
     if (c.notes && c.notes.length > 0) {
       printContent += '<h2>跟进记录</h2>';
       c.notes.forEach(function(n) {
-        printContent += '<div class="note"><div class="note-time">' + escHtml(n.time || '') + '</div><div>' + escHtml(n.content || '') + '</div></div>';
+        var eventLabel = n.event || '';
+        var occurTime = n.occur_time || '';
+        var details = n.content || n.details || '';
+        var nextTodo = n.next_todo || '';
+        printContent += '<div style="border:1px solid #e0e0e0;border-radius:6px;padding:10px;margin-bottom:8px;">';
+        printContent += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+        if (eventLabel) printContent += '<span style="background:#e3f2fd;color:#1565c0;font-size:12px;font-weight:600;padding:2px 8px;border-radius:10px;">' + escHtml(eventLabel) + '</span>';
+        if (occurTime) printContent += '<span style="font-size:12px;color:#888;">' + escHtml(occurTime) + '</span>';
+        printContent += '</div>';
+        printContent += '<div style="font-size:11px;color:#aaa;margin-bottom:4px;">记录于 ' + escHtml(n.time || '') + '</div>';
+        if (details) printContent += '<div style="font-size:13px;color:#333;margin-bottom:4px;">' + escHtml(details) + '</div>';
+        if (nextTodo) printContent += '<div style="font-size:12px;color:#f57f17;"><strong>待办：</strong>' + escHtml(nextTodo) + '</div>';
+        printContent += '</div>';
       });
     }
 
@@ -1543,6 +2458,20 @@
   window.calcCourtFee = calcCourtFee;
   window.searchCases = searchCases;
   window.printCaseDetail = printCaseDetail;
+  window.toggleAppraisalDetail = toggleAppraisalDetail;
+  window.filterDeadlineBoard = filterDeadlineBoard;
+  window.renderDeadlineList = renderDeadlineList;
+  window.renderDashboard = renderDashboard;
+  window.showVerifyPopover = showVerifyPopover;
+  window.hideVerifyPopover = hideVerifyPopover;
+  window.handleVerifySubmit = handleVerifySubmit;
+  window.handleCascadeResolve = handleCascadeResolve;
+  window.handleAccidentReviewConfirm = handleAccidentReviewConfirm;
+  window.handleTollingSubmit = handleTollingSubmit;
+  window.resetVerify = resetVerify;
+  window.showQuickNoteForm = showQuickNoteForm;
+  window.hideQuickNoteForm = hideQuickNoteForm;
+  window.saveQuickNote = saveQuickNote;
 
   // ===== Boot =====
   if (document.readyState === 'loading') {

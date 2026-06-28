@@ -162,15 +162,21 @@
       <div id="caseList" class="case-grid"></div>
     </div>
 
-    <!-- ===== Deadlines View ===== -->
+    <!-- ===== Deadlines View (按案件归集看板) ===== -->
     <div class="main-body view" id="view-deadlines">
-      <div class="filter-tabs" id="deadlineFilters">
-        <button class="filter-tab active" onclick="filterDeadlines('all', this)">全部</button>
-        <button class="filter-tab" onclick="filterDeadlines('danger', this)">&#128308; 紧急</button>
-        <button class="filter-tab" onclick="filterDeadlines('warn', this)">&#128992; 临期</button>
-        <button class="filter-tab" onclick="filterDeadlines('safe', this)">&#128994; 安全</button>
+      <div style="margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <div class="search-input" style="max-width:320px;">
+          <span class="search-icon">&#128269;</span>
+          <input class="input" type="text" placeholder="搜索案件名称、编号..." id="deadlineSearch" oninput="filterDeadlineBoard(this.value)">
+        </div>
+        <div class="filter-tabs" id="deadlineFilters" style="margin-bottom:0;">
+          <button class="filter-tab active" onclick="filterDeadlines('all', this)">全部</button>
+          <button class="filter-tab" onclick="filterDeadlines('danger', this)">&#128308; 紧急</button>
+          <button class="filter-tab" onclick="filterDeadlines('warn', this)">&#128992; 临期</button>
+          <button class="filter-tab" onclick="filterDeadlines('safe', this)">&#128994; 安全</button>
+        </div>
       </div>
-      <div id="deadlineList" class="deadline-list"></div>
+      <div id="deadlineList" class="deadline-board"></div>
     </div>
 
     <!-- ===== Laws View ===== -->
@@ -352,8 +358,17 @@
       <h4 style="font-size:15px;font-weight:600;margin-bottom:16px;">补充/修改案件信息</h4>
       <div id="caseEditForm"></div>
       <div style="margin-top:16px;">
-        <h4 style="font-size:15px;font-weight:600;margin-bottom:12px;">添加跟进记录</h4>
-        <textarea id="caseNoteInput" placeholder="记录面谈、通话、新情况等..." style="width:100%;min-height:80px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;background:var(--bg);color:var(--text-primary);"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h4 style="font-size:15px;font-weight:600;margin:0;">添加跟进记录</h4>
+        </div>
+        <div id="noteFormFields">
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div class="form-group" style="margin:0;"><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">事件</label><input type="text" id="noteEvent" placeholder="例：面谈 / 电话沟通 / 补充证据 / 对方联系…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--bg);color:var(--text-primary);"></div>
+            <div class="form-group" style="margin:0;"><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">发生时间</label><input type="datetime-local" id="noteOccurTime" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--bg);color:var(--text-primary);"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;"><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">详情</label><textarea id="noteDetails" placeholder="记录面谈内容、通话要点、新情况等…" style="width:100%;min-height:80px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;background:var(--bg);color:var(--text-primary);"></textarea></div>
+          <div class="form-group" style="margin-bottom:12px;"><label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">下一步待办</label><input type="text" id="noteNextTodo" placeholder="例：准备起诉状 / 联系对方保险 / 等待鉴定结果…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--bg);color:var(--text-primary);"></div>
+        </div>
         <div style="display:flex;gap:8px;margin-top:12px;">
           <button class="btn btn-primary" onclick="saveCaseEdit()">保存修改</button>
           <button class="btn btn-ghost" onclick="toggleCaseEdit()">取消</button>
@@ -362,6 +377,9 @@
     </div>
   </div>
 </div>
+
+<!-- Deadline Verification Popover Container -->
+<div id="deadlineVerifyPopover" style="display:none;"></div>
 
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>

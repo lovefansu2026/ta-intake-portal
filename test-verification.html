@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verification Flow Test</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .test-log { position:fixed; bottom:0; left:0; right:0; max-height:40vh; overflow-y:auto;
+    background:#1a1a2e; color:#0f0; font-family:monospace; font-size:12px; padding:12px; z-index:9999; }
+  .test-log .pass { color:#10b981; }
+  .test-log .fail { color:#ef4444; }
+  .test-log .info { color:#60a5fa; }
+</style>
+</head>
+<body>
+
+<!-- Minimal DOM structure that app.js expects -->
+<div class="team-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header"><div class="logo"><div class="logo-icon">&#9878;</div><div><div>工作台</div></div></div></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item active" href="#/" data-route="/" onclick="navigate(this)"><span class="nav-icon">&#128200;</span> Dashboard</a>
+      <a class="nav-item" href="#/deadlines" data-route="/deadlines" onclick="navigate(this)"><span class="nav-icon">&#9200;</span> Deadlines <span class="nav-badge" id="deadlineBadge" style="display:none">0</span></a>
+    </nav>
+  </aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="main-content">
+    <header class="main-header">
+      <span class="page-title" id="pageTitle">Test</span>
+    </header>
+    <div class="main-body view active" id="view-dashboard">
+      <div class="stat-grid" id="statGrid">
+        <div class="stat-card"><div class="stat-info"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-value" id="statIntake">0</div><div class="stat-label">Intake</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-value" id="statFiling">0</div><div class="stat-label">Filing</div></div></div>
+        <div class="stat-card"><div class="stat-info"><div class="stat-value" id="statUrgent">0</div><div class="stat-label">Urgent</div></div></div>
+      </div>
+      <div id="recentCases"></div>
+      <div id="recentDeadlines"></div>
+    </div>
+    <div class="main-body view" id="view-deadlines">
+      <div id="deadlineList" class="deadline-board"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Case Detail Modal -->
+<div id="caseDetailModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;">
+  <div onclick="closeCaseDetail()" style="position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);"></div>
+  <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surface);border-radius:12px;width:90%;max-width:720px;max-height:85vh;overflow-y:auto;">
+    <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
+      <h3 id="caseDetailTitle" style="font-size:18px;font-weight:600;margin:0;">Case Detail</h3>
+      <button onclick="closeCaseDetail()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;">&times;</button>
+    </div>
+    <div id="caseDetailContent" style="padding:24px;"></div>
+  </div>
+</div>
+
+<!-- Deadline Verification Popover -->
+<div id="deadlineVerifyPopover" style="display:none;"></div>
+
+<!-- Test Log -->
+<div class="test-log" id="testLog"></div>
+
+<!-- Patch API before app.js loads -->
+<script>
+  // Disable API to prevent real data from overwriting test data
+  window.__TEST_MODE__ = true;
+</script>
+
+<script src="js/data.js"></script>
+<script>
+// Override API_ENABLED before app.js IIFE runs
+// We need to patch the module — since it's an IIFE we can't directly,
+// so we seed localStorage with test data and the app will load it.
+// The API fetch is async so it won't block, but we need to prevent merge.
+// Solution: clear any existing data and set test data, then let app.js load it.
+// The API_ENABLED flag is inside the IIFE, so we patch it by redefining fetch.
+var _origFetch = window.fetch;
+window.fetch = function(url) {
+  if (url && url.toString().indexOf('ta-intake-api') >= 0) {
+    return Promise.resolve({ ok: true, json: function() { return Promise.resolve([]); } });
+  }
+  return _origFetch.apply(this, arguments);
+};
+
+// Seed test data into localStorage
+var testCases = [
+  {
+    id: 'TA-TEST-001',
+    importTime: '2026-06-01T10:00:00Z',
+    status: 'filing',
+    source: {},
+    basicInfo: { name: '张三', phone: '13800001111', gender: '男', birthdate: '1985-03-15' },
+    accident: { date: '2024-06-15', location: '沈阳市和平区', liability: '对方全责', type: '机动车与行人' },
+    injury: {},
+    injury_persons: [{ person_type: '受伤', name: '张三', age: 39, diagnosis: '左腿骨折', hospital: '沈阳医大一院' }],
+    nursing: {},
+    insurance: { insurer: '中国人保' },
+    deadlines: [
+      { item: '工伤认定申请（单位申请）', legal_basis: '《工伤保险条例》第17条', deadline: '2024-07-15', remaining: '已逾期', urgent: true, note: '单位30日内申请' },
+      { item: '工伤认定申请（个人申请）', legal_basis: '《工伤保险条例》第17条', deadline: '2025-06-15', remaining: '已逾期', urgent: true, note: '个人1年内申请' },
+      { item: '提起民事诉讼', legal_basis: '《民法典》第188条', deadline: '2027-06-15', remaining: '剩余718天', urgent: false, note: '诉讼时效3年' },
+      { item: '交通事故认定复核', legal_basis: '《道路交通事故处理程序规定》第71条', deadline: '2024-06-18', remaining: '已逾期', urgent: true, note: '收到认定书3日内' }
+    ],
+    demands: {}, litigation: {}, materials: {},
+    team: { market_contact: '李助理', consulting_lawyer: '王律师', filing_lawyer: '', representing_lawyer: '赵律师' },
+    appraisal: { disability_appraisal_status: '申请', disability_level: '九级', disability_date: '2025-01-10', disability_institution: '沈阳鉴定中心', nursing_appraisal_status: '', three_periods: '', three_periods_date: '', three_periods_institution: '', appraisal_notes: '' },
+    fees: { agency_fee: '15000', settlement_status: '部分支付', settlement_notes: '' },
+    notes: []
+  },
+  {
+    id: 'TA-TEST-002',
+    importTime: '2026-06-10T10:00:00Z',
+    status: 'intake',
+    source: {},
+    basicInfo: { name: '李四', phone: '13900002222', gender: '女', birthdate: '1990-08-20' },
+    accident: { date: '2026-05-20', location: '大连市中山区', liability: '同等责任', type: '机动车与机动车' },
+    injury: {},
+    injury_persons: [{ person_type: '受伤', name: '李四', age: 35, diagnosis: '颈椎间盘突出', hospital: '大连中心医院' }],
+    nursing: {},
+    insurance: {},
+    deadlines: [
+      { item: '提起民事诉讼', legal_basis: '《民法典》第188条', deadline: '2029-05-20', remaining: '剩余1087天', urgent: false, note: '诉讼时效3年' },
+      { item: '保险理赔申请', legal_basis: '《保险法》第26条', deadline: '', remaining: '及时申请', urgent: false, note: '建议尽快提交理赔材料' }
+    ],
+    demands: {}, litigation: {}, materials: {},
+    team: {}, appraisal: { disability_appraisal_status: '', nursing_appraisal_status: '' },
+    fees: {}, notes: []
+  }
+];
+localStorage.setItem('ta-cases', JSON.stringify(testCases));
+</script>
+<script src="js/app.js"></script>
+<script>
+// ===== Test Harness =====
+var testLog = document.getElementById('testLog');
+var testResults = { pass: 0, fail: 0 };
+
+function log(msg, type) {
+  var cls = type === 'pass' ? 'pass' : type === 'fail' ? 'fail' : 'info';
+  testLog.innerHTML += '<div class="' + cls + '">[' + (type||'info').toUpperCase() + '] ' + msg + '</div>';
+  testLog.scrollTop = testLog.scrollHeight;
+}
+
+function assert(condition, msg) {
+  if (condition) { testResults.pass++; log('PASS: ' + msg, 'pass'); }
+  else { testResults.fail++; log('FAIL: ' + msg, 'fail'); }
+}
+
+function waitForView(viewId, callback) {
+  var check = setInterval(function() {
+    var view = document.getElementById(viewId);
+    if (view && view.classList.contains('active')) {
+      clearInterval(check);
+      callback();
+    }
+  }, 100);
+  setTimeout(function() { clearInterval(check); callback(); }, 2000);
+}
+
+// Run tests after app init
+setTimeout(function() {
+  log('=== Starting Verification Flow Tests ===', 'info');
+
+  // Test 1: Check cases loaded
+  log('--- Test 1: Data Loading ---', 'info');
+  var statTotal = document.getElementById('statTotal');
+  assert(statTotal && statTotal.textContent === '2', 'Cases loaded: ' + (statTotal ? statTotal.textContent : 'N/A'));
+
+  var statUrgent = document.getElementById('statUrgent');
+  assert(statUrgent && parseInt(statUrgent.textContent) > 0, 'Urgent count > 0: ' + (statUrgent ? statUrgent.textContent : 'N/A'));
+
+  // Test 2: Directly switch to deadlines view (bypass hash routing)
+  log('--- Test 2: Deadline Board Rendering ---', 'info');
+  // Manually switch views
+  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+  document.getElementById('view-deadlines').classList.add('active');
+  document.getElementById('pageTitle').textContent = '期限管理';
+  // Directly call render
+  log('DEBUG: deadlineList element exists: ' + (document.getElementById('deadlineList') !== null), 'info');
+  log('DEBUG: view-deadlines active: ' + document.getElementById('view-deadlines').classList.contains('active'), 'info');
+  try {
+    renderDeadlineList();
+    log('DEBUG: renderDeadlineList completed without error', 'info');
+  } catch(e) {
+    log('DEBUG: renderDeadlineList ERROR: ' + e.message + ' at ' + e.stack, 'fail');
+  }
+  log('DEBUG: After render, deadlineList HTML length: ' + document.getElementById('deadlineList').innerHTML.length, 'info');
+  if (document.getElementById('deadlineList').innerHTML.length > 0) {
+    log('DEBUG: deadlineList HTML preview: ' + document.getElementById('deadlineList').innerHTML.substring(0, 500), 'info');
+  }
+
+  setTimeout(function() {
+    var dlList = document.getElementById('deadlineList');
+    var boardItems = dlList.querySelectorAll('.deadline-board-item.dv-clickable');
+    assert(boardItems.length > 0, 'Clickable deadline items rendered: ' + boardItems.length);
+
+    var badges = dlList.querySelectorAll('.dv-badge');
+    assert(badges.length > 0, 'Verification badges rendered: ' + badges.length);
+
+    if (boardItems.length === 0) {
+      log('Board HTML preview: ' + dlList.innerHTML.substring(0, 200), 'info');
+    }
+
+      // Test 3: Click a deadline item to open popover
+      log('--- Test 3: Popover Open (Flow A - 提起民事诉讼) ---', 'info');
+      var litigationItem = null;
+      boardItems.forEach(function(item) {
+        if (item.getAttribute('data-dv-item') && item.getAttribute('data-dv-item').indexOf('民事诉讼') >= 0) {
+          litigationItem = item;
+        }
+      });
+
+      if (litigationItem) {
+        litigationItem.click();
+        setTimeout(function() {
+          var popover = document.getElementById('deadlineVerifyPopover');
+          var isVisible = popover.style.display === 'block';
+          assert(isVisible, 'Popover opened for 提起民事诉讼');
+
+          var dateInput = document.getElementById('dvActualDate');
+          assert(dateInput !== null, 'Date input present in popover');
+
+          // Test 4: Submit a safe date
+          log('--- Test 4: Verify Safe Date ---', 'info');
+          if (dateInput) {
+            dateInput.value = '2026-06-01';
+            handleVerifySubmit('TA-TEST-001', 2);
+            setTimeout(function() {
+              var popover2 = document.getElementById('deadlineVerifyPopover');
+              var hasSafeResult = popover2.innerHTML.indexOf('dv-result-safe') >= 0;
+              assert(hasSafeResult, 'Safe result displayed after verification');
+
+              var hasVerifiedBadge = popover2.innerHTML.indexOf('dv-badge-safe') >= 0;
+              assert(hasVerifiedBadge, 'Verified badge shown');
+
+              // Test 5: Close popover and check board update
+              log('--- Test 5: Board Update After Verification ---', 'info');
+              hideVerifyPopover();
+              setTimeout(function() {
+                var updatedItems = document.querySelectorAll('.deadline-board-item.dv-verified-safe');
+                assert(updatedItems.length > 0, 'Board shows verified-safe item');
+
+                // Test 6: Reset
+                log('--- Test 6: Reset Verification ---', 'info');
+                resetVerify('TA-TEST-001', 2);
+                setTimeout(function() {
+                  var popover3 = document.getElementById('deadlineVerifyPopover');
+                  var hasDateInput = popover3.innerHTML.indexOf('dvActualDate') >= 0;
+                  assert(hasDateInput, 'Reset shows date input form again');
+
+                  hideVerifyPopover();
+                  setTimeout(function() {
+                    // Test 7: Overdue flow
+                    log('--- Test 7: Verify Overdue Date ---', 'info');
+                    showVerifyPopover('TA-TEST-001', 3);
+                    setTimeout(function() {
+                      var dateInput2 = document.getElementById('dvActualDate');
+                      if (dateInput2) {
+                        dateInput2.value = '2024-07-15';
+                        handleVerifySubmit('TA-TEST-001', 3);
+                        setTimeout(function() {
+                          var popover4 = document.getElementById('deadlineVerifyPopover');
+                          var hasOverdueResult = popover4.innerHTML.indexOf('dv-result-overdue') >= 0;
+                          assert(hasOverdueResult, 'Overdue result displayed');
+
+                          var hasTolling = popover4.innerHTML.indexOf('dvTollingSuspension') >= 0;
+                          assert(hasTolling, 'Tolling checkboxes shown for overdue');
+
+                          // Test 8: Tolling mitigation
+                          log('--- Test 8: Tolling Mitigation ---', 'info');
+                          var suspCheckbox = document.getElementById('dvTollingSuspension');
+                          if (suspCheckbox) {
+                            suspCheckbox.checked = true;
+                            handleTollingSubmit('TA-TEST-001', 3);
+                            setTimeout(function() {
+                              var tollingItems = document.querySelectorAll('.deadline-board-item.dv-verified-resolved');
+                              assert(tollingItems.length > 0, 'Tolling item shows as resolved');
+
+                              // Test 9: Work injury cascade
+                              log('--- Test 9: Work Injury Cascade (Flow B) ---', 'info');
+                              showVerifyPopover('TA-TEST-001', 0);
+                              setTimeout(function() {
+                                var popover5 = document.getElementById('deadlineVerifyPopover');
+                                var hasCascade = popover5.innerHTML.indexOf('dvCascade') >= 0;
+                                assert(hasCascade, 'Cascade options shown for work injury unit deadline');
+
+                                var hasRadio = popover5.innerHTML.indexOf('personal_applied') >= 0;
+                                assert(hasRadio, 'Radio options for personal_applied/personal_submitted');
+
+                                var radio = document.querySelector('input[name="dvCascade"][value="personal_applied"]');
+                                if (radio) {
+                                  radio.checked = true;
+                                  handleCascadeResolve('TA-TEST-001', 0);
+                                  setTimeout(function() {
+                                    var resolvedItems = document.querySelectorAll('.deadline-board-item.dv-verified-resolved');
+                                    assert(resolvedItems.length >= 2, 'Both unit and personal deadlines resolved (cascade): ' + resolvedItems.length);
+
+                                    // Test 10: Accident review accept (Flow C)
+                                    log('--- Test 10: Accident Review Accept (Flow C) ---', 'info');
+                                    // Reset test case 1 deadline index 3 (交通事故认定复核) first
+                                    resetVerify('TA-TEST-001', 3);
+                                    setTimeout(function() {
+                                      hideVerifyPopover();
+                                      setTimeout(function() {
+                                        showVerifyPopover('TA-TEST-001', 3);
+                                        setTimeout(function() {
+                                          var popover6 = document.getElementById('deadlineVerifyPopover');
+                                          var hasAccidentForm = popover6.innerHTML.indexOf('认可认定结果') >= 0;
+                                          assert(hasAccidentForm, 'Accident review form shown with accept button');
+
+                                          handleAccidentReviewConfirm('TA-TEST-001', 3);
+                                          setTimeout(function() {
+                                            var cases = JSON.parse(localStorage.getItem('ta-cases') || '[]');
+                                            var tc1 = cases.find(function(x) { return x.id === 'TA-TEST-001'; });
+                                            var dl3 = tc1 && tc1.deadlines ? tc1.deadlines[3] : null;
+                                            var isResolved = dl3 && dl3.verification && dl3.verification.status === 'resolved' && dl3.verification.resolution === 'accepted';
+                                            assert(isResolved, 'Accident review deadline marked as resolved with accepted resolution');
+
+                                            // Test 11: Case detail
+                                            log('--- Test 11: Case Detail Verification Display ---', 'info');
+                                            openCaseDetail('TA-TEST-001');
+                                            setTimeout(function() {
+                                              var detailContent = document.getElementById('caseDetailContent');
+                                              var hasDeadlineBoard = detailContent.innerHTML.indexOf('期限看板') >= 0;
+                                              assert(hasDeadlineBoard, 'Case detail shows deadline board');
+
+                                              var hasVerifyBadges = detailContent.innerHTML.indexOf('dv-badge') >= 0;
+                                              assert(hasVerifyBadges, 'Case detail shows verification badges');
+
+                                              var hasClickable = detailContent.innerHTML.indexOf('showVerifyPopover') >= 0;
+                                              assert(hasClickable, 'Case detail deadline items are clickable');
+
+                                              closeCaseDetail();
+
+                                              // Summary
+                                              log('=== Test Summary: ' + testResults.pass + ' passed, ' + testResults.fail + ' failed ===', testResults.fail === 0 ? 'pass' : 'fail');
+                                              log('You can now interact manually with the app.', 'info');
+                                            }, 500);
+                                          }, 500);
+                                        }, 500);
+                                      }, 500);
+                                    }, 500);
+                                  }, 500);
+                                }
+                              }, 500);
+                            }, 500);
+                          }
+                        }, 500);
+                      }
+                    }, 500);
+                  }, 500);
+                }, 500);
+              }, 500);
+            }, 500);
+          }
+        }, 500);
+      } else {
+        log('Could not find 提起民事诉讼 deadline item', 'fail');
+        log('Available items: ' + Array.from(boardItems).map(function(i) { return i.getAttribute('data-dv-item'); }).join(', '), 'info');
+      }
+    }, 500);
+  }, 800);
+</script>
+</body>
+</html>
