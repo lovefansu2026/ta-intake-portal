@@ -770,10 +770,10 @@
     if (c.insurance) {
       html += '<div style="margin-bottom:20px;">';
       html += '<h4 style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">保险信息</h4>';
-      if (c.insurance.own_types && c.insurance.own_types.length > 0) {
+      if (Array.isArray(c.insurance.own_types) && c.insurance.own_types.length > 0) {
         html += '<div style="font-size:13px;margin-bottom:6px;"><span style="color:var(--text-muted);">己方险种：</span>' + escHtml(c.insurance.own_types.join('、')) + (c.insurance.own_unclear ? ' <span style="color:var(--text-muted);">（可能还有其他险种）</span>' : '') + '</div>';
       }
-      if (c.insurance.opposite_types && c.insurance.opposite_types.length > 0) {
+      if (Array.isArray(c.insurance.opposite_types) && c.insurance.opposite_types.length > 0) {
         html += '<div style="font-size:13px;margin-bottom:6px;"><span style="color:var(--text-muted);">对方险种：</span>' + escHtml(c.insurance.opposite_types.join('、')) + (c.insurance.opposite_unclear ? ' <span style="color:var(--text-muted);">（可能还有其他险种）</span>' : '') + '</div>';
       }
       if (c.insurance.insurer) html += '<div style="font-size:13px;"><span style="color:var(--text-muted);">己方保险公司：</span>' + escHtml(c.insurance.insurer) + '</div>';
@@ -1455,6 +1455,13 @@
       c.fees.agency_fee = c.fees.agency_fee || '';
       c.fees.settlement_status = c.fees.settlement_status || '';
       c.fees.settlement_notes = c.fees.settlement_notes || '';
+      // Ensure insurance array fields are actually arrays (old data may have strings)
+      if (c.insurance.own_types && !Array.isArray(c.insurance.own_types)) {
+        c.insurance.own_types = [c.insurance.own_types];
+      }
+      if (c.insurance.opposite_types && !Array.isArray(c.insurance.opposite_types)) {
+        c.insurance.opposite_types = [c.insurance.opposite_types];
+      }
     });
   }
 
@@ -2449,9 +2456,9 @@
     // Insurance
     if (c.insurance && (c.insurance.own_types || c.insurance.insurer || c.insurance.opposite_insurer)) {
       printContent += '<h2>保险信息</h2>';
-      if (c.insurance.own_types && c.insurance.own_types.length > 0) printContent += '<div><span class="label">己方险种：</span>' + escHtml(c.insurance.own_types.join('、')) + '</div>';
+      if (Array.isArray(c.insurance.own_types) && c.insurance.own_types.length > 0) printContent += '<div><span class="label">己方险种：</span>' + escHtml(c.insurance.own_types.join('、')) + '</div>';
       if (c.insurance.insurer) printContent += '<div><span class="label">己方保险公司：</span>' + escHtml(c.insurance.insurer) + '</div>';
-      if (c.insurance.opposite_types && c.insurance.opposite_types.length > 0) printContent += '<div><span class="label">对方险种：</span>' + escHtml(c.insurance.opposite_types.join('、')) + '</div>';
+      if (Array.isArray(c.insurance.opposite_types) && c.insurance.opposite_types.length > 0) printContent += '<div><span class="label">对方险种：</span>' + escHtml(c.insurance.opposite_types.join('、')) + '</div>';
       if (c.insurance.opposite_insurer) printContent += '<div><span class="label">对方保险公司：</span>' + escHtml(c.insurance.opposite_insurer) + '</div>';
     }
 
