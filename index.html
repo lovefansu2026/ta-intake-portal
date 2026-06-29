@@ -165,7 +165,7 @@
         </p>
       </div>
       <div id="intakeContainer" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;">
-        <iframe id="intakeFrame" src="intake-form.html?v=20260629" style="width:100%;min-height:80vh;border:none;" onload="autoResizeFrame(this)"></iframe>
+        <iframe id="intakeFrame" src="intake-form.html?v=20260629b" style="width:100%;min-height:80vh;border:none;" onload="autoResizeFrame(this)"></iframe>
       </div>
       <div style="margin-top:16px;text-align:center;color:var(--text-muted);font-size:13px;">
         <p>填写完成后点击"确认提交"，系统将自动生成案件编号并下载数据文件。</p>
@@ -221,6 +221,21 @@ try {
   if (saved) setTheme(saved);
   else if (window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
 } catch(e) {}
+
+// ===== Hero Day/Night Banner Switch =====
+// Day: 07:00–19:00, Night: 19:00–07:00
+function updateHeroBanner() {
+  var hero = document.querySelector('.hero');
+  if (!hero) return;
+  var hour = new Date().getHours();
+  if (hour >= 19 || hour < 7) {
+    hero.classList.add('hero-night');
+  } else {
+    hero.classList.remove('hero-night');
+  }
+}
+updateHeroBanner();
+setInterval(updateHeroBanner, 60000); // re-check every minute
 
 // ===== Iframe Auto Resize =====
 function autoResizeFrame(iframe) {

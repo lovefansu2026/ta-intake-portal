@@ -587,23 +587,26 @@ a:hover { text-decoration: underline; }
 
 /* ===== Hero Section (Client Home) ===== */
 .hero {
-  background: linear-gradient(135deg, var(--primary), #0891b2);
+  background: url('../images/banner-day.jpg') center center / cover no-repeat;
   color: white;
   padding: 80px 40px;
   text-align: center;
   position: relative;
   overflow: hidden;
+  transition: background-image 0.8s ease-in-out;
+}
+
+/* Night variant — applied by JS based on time of day */
+.hero.hero-night {
+  background-image: url('../images/banner-night.jpg');
 }
 
 .hero::before {
   content: '';
   position: absolute;
-  top: -50%;
-  right: -20%;
-  width: 400px;
-  height: 400px;
-  background: rgba(255,255,255,0.06);
-  border-radius: 50%;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.55) 100%);
+  z-index: 0;
 }
 
 .hero::after {
