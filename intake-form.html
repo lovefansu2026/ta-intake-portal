@@ -1987,24 +1987,27 @@
     URL.revokeObjectURL(url);
 
     // Submit to Cloudflare Worker API
+    // Use keepalive:true so the request survives page navigation
+    // (e.g. user clicking "工作台" link while POST is still in flight)
     var apiStatus = '';
     if (API_ENABLED && API_BASE_URL) {
+      // Show pending status immediately in the overlay
+      document.getElementById('apiStatus').innerHTML = '<div style="margin-top:12px;padding:10px 14px;background:#eff6ff;border-radius:6px;font-size:13px;color:#1d4ed8;"><strong>⟳ 正在同步至团队工作台…</strong></div>';
+
       fetch(API_BASE_URL + '/api/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        keepalive: true
       }).then(function(res) { return res.json(); })
         .then(function(data) {
           if (data.success) {
-            apiStatus = '<div style="margin-top:12px;padding:10px 14px;background:#edf5ef;border-radius:6px;font-size:13px;color:#2d7a4c;"><strong>✓ 已同步至团队工作台</strong></div>';
-            document.getElementById('apiStatus').innerHTML = apiStatus;
+            document.getElementById('apiStatus').innerHTML = '<div style="margin-top:12px;padding:10px 14px;background:#edf5ef;border-radius:6px;font-size:13px;color:#2d7a4c;"><strong>✓ 已同步至团队工作台</strong></div>';
           } else {
-            apiStatus = '<div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border-radius:6px;font-size:13px;color:#92400e;"><strong>⚠ 同步失败，请手动发送下载的文件</strong></div>';
-            document.getElementById('apiStatus').innerHTML = apiStatus;
+            document.getElementById('apiStatus').innerHTML = '<div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border-radius:6px;font-size:13px;color:#92400e;"><strong>⚠ 同步失败，请手动发送下载的文件</strong></div>';
           }
         }).catch(function(err) {
-          apiStatus = '<div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border-radius:6px;font-size:13px;color:#92400e;"><strong>⚠ 网络错误，请手动发送下载的文件</strong></div>';
-          document.getElementById('apiStatus').innerHTML = apiStatus;
+          document.getElementById('apiStatus').innerHTML = '<div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border-radius:6px;font-size:13px;color:#92400e;"><strong>⚠ 网络错误，请手动发送下载的文件</strong></div>';
         });
     }
 

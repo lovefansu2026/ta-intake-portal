@@ -19,18 +19,18 @@
   var deadlineSearchQuery = '';
 
   // ===== API Integration =====
+  // Returns a Promise that resolves with submissions array on success.
+  // Rejects on network/server errors — callers MUST handle the rejection
+  // (both loadCases and syncFromAPI have .catch() handlers).
   function fetchSubmissions() {
     if (!API_ENABLED || !API_BASE_URL) return Promise.resolve([]);
 
     return fetch(API_BASE_URL + '/api/submissions')
       .then(function(res) {
-        if (!res.ok) throw new Error('API request failed');
+        if (!res.ok) throw new Error('API responded with status ' + res.status);
         return res.json();
-      })
-      .catch(function(err) {
-        console.error('Failed to fetch submissions:', err);
-        return [];
       });
+    // Note: errors propagate to caller — do NOT catch here
   }
 
   function showSyncStatus(msg, type) {
@@ -285,7 +285,7 @@
             hideSyncStatus();
           }
         } else {
-          console.log('[API Sync] no submissions from API (empty or fetch failed silently)');
+          console.log('[API Sync] no submissions from API (empty response)');
           if (submissions && submissions.length === 0) {
             showSyncStatus('云端暂无新案件', 'info');
           }
