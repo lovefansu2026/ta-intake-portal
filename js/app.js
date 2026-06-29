@@ -33,6 +33,30 @@
       });
   }
 
+  function showSyncStatus(msg, type) {
+    var el = document.getElementById('syncStatus');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = msg;
+    el.className = '';
+    if (type === 'loading') {
+      el.style.background = '#eff6ff'; el.style.color = '#1d4ed8'; el.style.border = '1px solid #bfdbfe';
+    } else if (type === 'success') {
+      el.style.background = '#edf5ef'; el.style.color = '#2d7a4c'; el.style.border = '1px solid #bbf7d0';
+      setTimeout(hideSyncStatus, 5000);
+    } else if (type === 'error') {
+      el.style.background = '#fef2f2'; el.style.color = '#991b1b'; el.style.border = '1px solid #fecaca';
+    } else if (type === 'info') {
+      el.style.background = '#f5f5f4'; el.style.color = '#57534e'; el.style.border = '1px solid #e7e5e4';
+      setTimeout(hideSyncStatus, 4000);
+    }
+  }
+
+  function hideSyncStatus() {
+    var el = document.getElementById('syncStatus');
+    if (el) el.style.display = 'none';
+  }
+
   function importSubmissionToCase(submission) {
     var caseObj = {
       id: submission._meta && submission._meta.case_id ? submission._meta.case_id : submission.id || ('TA-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6)),
@@ -229,24 +253,46 @@
 
     // Fetch from API and merge
     if (API_ENABLED && API_BASE_URL) {
+      showSyncStatus('正在从云端同步案件数据...', 'loading');
       fetchSubmissions().then(function(submissions) {
+        console.log('[API Sync] fetchSubmissions returned:', submissions ? submissions.length : 0, 'items');
         if (submissions && submissions.length > 0) {
           var newCount = 0;
+          var skipCount = 0;
           submissions.forEach(function(sub) {
             var exists = cases.some(function(c) {
               return c.id === (sub._meta && sub._meta.case_id ? sub._meta.case_id : sub.id);
             });
             if (!exists) {
-              importSubmissionToCase(sub);
-              newCount++;
+              try {
+                importSubmissionToCase(sub);
+                newCount++;
+              } catch(e) {
+                console.error('[API Sync] importSubmissionToCase failed for', sub.id || (sub._meta && sub._meta.case_id), e);
+              }
+            } else {
+              skipCount++;
             }
           });
+          console.log('[API Sync] imported', newCount, 'new, skipped', skipCount, 'duplicates');
           if (newCount > 0) {
             saveCases();
             renderDashboard();
-            console.log('Auto-synced ' + newCount + ' new submissions from API');
+            showSyncStatus('同步完成：新增 ' + newCount + ' 个案件', 'success');
+          } else if (skipCount > 0) {
+            showSyncStatus('数据已是最新（' + skipCount + ' 个案件无变化）', 'info');
+          } else {
+            hideSyncStatus();
+          }
+        } else {
+          console.log('[API Sync] no submissions from API (empty or fetch failed silently)');
+          if (submissions && submissions.length === 0) {
+            showSyncStatus('云端暂无新案件', 'info');
           }
         }
+      }).catch(function(err) {
+        console.error('[API Sync] failed:', err.message || err);
+        showSyncStatus('同步失败：' + (err.message || '网络错误') + '，请按 F12 查看控制台', 'error');
       });
     }
   }
@@ -2361,32 +2407,45 @@
       return;
     }
 
+    showSyncStatus('正在从云端同步案件数据...', 'loading');
     fetchSubmissions().then(function(submissions) {
+      console.log('[syncFromAPI] fetchSubmissions returned:', submissions ? submissions.length : 0, 'items');
       if (!submissions || submissions.length === 0) {
-        alert('API 暂无数据');
+        showSyncStatus('云端暂无案件数据', 'info');
         return;
       }
 
       var newCount = 0;
+      var skipCount = 0;
       submissions.forEach(function(sub) {
         var exists = cases.some(function(c) {
           return c.id === (sub._meta && sub._meta.case_id ? sub._meta.case_id : sub.id);
         });
         if (!exists) {
-          importSubmissionToCase(sub);
-          newCount++;
+          try {
+            importSubmissionToCase(sub);
+            newCount++;
+          } catch(e) {
+            console.error('[syncFromAPI] importSubmissionToCase failed for', sub.id || (sub._meta && sub._meta.case_id), e);
+          }
+        } else {
+          skipCount++;
         }
       });
 
+      console.log('[syncFromAPI] imported', newCount, 'new, skipped', skipCount, 'duplicates');
       if (newCount > 0) {
         saveCases();
         renderDashboard();
-        alert('同步完成：新增 ' + newCount + ' 个案件');
+        showSyncStatus('同步完成：新增 ' + newCount + ' 个案件' + (skipCount > 0 ? '（跳过 ' + skipCount + ' 个重复）' : ''), 'success');
+      } else if (skipCount > 0) {
+        showSyncStatus('数据已是最新（' + skipCount + ' 个案件无变化）', 'info');
       } else {
-        alert('暂无新数据');
+        showSyncStatus('未发现新案件', 'info');
       }
     }).catch(function(err) {
-      alert('同步失败：' + err.message);
+      console.error('[syncFromAPI] failed:', err.message || err);
+      showSyncStatus('同步失败：' + (err.message || '网络错误') + '，请按 F12 查看控制台', 'error');
     });
   }
 
