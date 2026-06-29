@@ -68,7 +68,7 @@ export default {
         );
       }
 
-      // GET /api/submissions - List all submissions
+      // GET /api/submissions - List all submissions with full data
       if (path === '/api/submissions' && method === 'GET') {
         const index = await env.SUBMISSIONS.get('index', 'json') || [];
 
@@ -89,7 +89,21 @@ export default {
           return new Response(JSON.stringify(full), { headers: CORS_HEADERS });
         }
 
-        return new Response(JSON.stringify(filtered), { headers: CORS_HEADERS });
+        // Return full submission data for all index entries
+        // This ensures the team dashboard receives complete data including
+        // _meta, sections.*, and deadline_reminders fields
+        const results = [];
+        for (const item of filtered) {
+          const full = await env.SUBMISSIONS.get(item.id, 'json');
+          if (full) {
+            results.push(full);
+          } else {
+            // KV entry may have been deleted; fall back to index summary
+            results.push(item);
+          }
+        }
+
+        return new Response(JSON.stringify(results), { headers: CORS_HEADERS });
       }
 
       // PATCH /api/submissions/:id - Update submission status
