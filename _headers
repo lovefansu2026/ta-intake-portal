@@ -1,11 +1,5 @@
 # Cache-Control headers for Cloudflare Pages
-# Ensures HTML/JS/CSS files are never served from stale browser cache
+# Ensures all assets are never served from stale browser cache
 
-/*.html
-  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
-
-/*.js
-  Cache-Control: no-cache, no-store, must-revalidate, max-age=0
-
-/*.css
+/*
   Cache-Control: no-cache, no-store, must-revalidate, max-age=0
