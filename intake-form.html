@@ -1893,6 +1893,12 @@
       } else { result[key] = value; }
     }
 
+    // Normalize: ensure all multi-checkbox fields are arrays (single selection yields string from FormData)
+    var arrayFields = ['insurance', 'opposite_insurance_type', 'weather', 'criminal_risk', 'demands', 'materials', 'materials_sub'];
+    arrayFields.forEach(function(f) {
+      if (result[f] && !Array.isArray(result[f])) { result[f] = [result[f]]; }
+    });
+
     // Collect dynamic injury person data
     var injuryPersons = [];
     var blocks = document.querySelectorAll('.injury-person-block');
