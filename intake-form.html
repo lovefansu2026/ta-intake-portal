@@ -370,7 +370,7 @@
   /* ===== Print ===== */
   @media print {
     body { background: white; }
-    .progress-bar, .btn-group, .no-print, .admin-panel { display: none !important; }
+    .progress-bar, .btn-group, .no-print, .admin-panel, .overlay-backdrop { display: none !important; }
     .container { padding: 0; max-width: 100%; }
     .section { break-inside: avoid; page-break-inside: avoid; }
     .header { background: var(--seed-primary) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -2029,91 +2029,11 @@
   function closeOverlay() { document.getElementById('successOverlay').classList.remove('active'); }
 
   function overlayPrint() {
-    // Close overlay
+    // Close overlay before printing
     var overlay = document.getElementById('successOverlay');
-    overlay.classList.remove('active');
-    // Collect form values
-    var formEl = document.querySelector('form');
-    var fd = new FormData(formEl);
-    var vals = {};
-    for (var e of fd.entries()) { vals[e[0]] = e[1]; }
-    // Build print content
-    var h = '';
-    h += '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>交通事故问询单 - 打印</title>';
-    h += '<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#333;padding:20px;max-width:800px;margin:0 auto;}';
-    h += 'h1{font-size:20px;color:#2d7a4c;text-align:center;margin-bottom:8px;}';
-    h += 'h2{font-size:15px;color:#2d7a4c;border-bottom:2px solid #e8f5e9;padding-bottom:6px;margin-top:20px;}';
-    h += '.row{display:flex;flex-wrap:wrap;gap:4px 20px;margin-bottom:4px;}';
-    h += '.item{min-width:180px;font-size:13px;line-height:1.8;}';
-    h += '.lbl{color:#888;font-size:12px;} .val{font-weight:500;}';
-    h += '.check{display:inline-block;padding:2px 8px;margin:2px;background:#e8f5e9;border-radius:4px;font-size:12px;}';
-    h += '@media print{body{padding:10px;}}</style></head><body>';
-    h += '<h1>交通事故案件问询单</h1>';
-    // Helper: add a section
-    function s(title, fields) {
-      h += '<h2>' + title + '</h2>';
-      fields.forEach(function(f) {
-        var v = vals[f.key] || '';
-        if (f.type === 'check') {
-          h += '<div class="item"><span class="lbl">' + f.label + '：</span>';
-          h += (v ? '<span class="check">' + v + '</span>' : '<span class="val">未选</span>');
-          h += '</div>';
-        } else if (f.type === 'multi') {
-          if (v) h += '<div class="item"><span class="lbl">' + f.label + '：</span><span class="val">' + v + '</span></div>';
-        } else if (f.type === 'textarea') {
-          if (v) h += '<div style="font-size:13px;line-height:1.6;margin-bottom:4px;"><span class="lbl">' + f.label + '：</span><br><span class="val">' + v + '</span></div>';
-        } else {
-          if (v) h += '<div class="item"><span class="lbl">' + f.label + '：</span><span class="val">' + v + '</span></div>';
-        }
-      });
-    }
-    s('当事人基本信息', [
-      {key:'name',label:'姓名'},{key:'gender',label:'性别'},{key:'birthdate',label:'出生日期'},
-      {key:'idcard',label:'身份证号'},{key:'phone',label:'联系电话'},{key:'emergency_phone',label:'紧急联系电话'},
-      {key:'address',label:'地址',type:'textarea'},{key:'occupation',label:'职业'},{key:'employer',label:'工作单位'},
-      {key:'party_identity',label:'当事人身份'}
-    ]);
-    if (vals.vo_name || vals.vo_relationship) {
-      s('车主信息（当事人非车主时）', [
-        {key:'vo_name',label:'车主姓名'},{key:'vo_relationship',label:'与当事人关系'},{key:'vo_phone',label:'车主电话'},{key:'vo_idcard',label:'车主身份证号'}
-      ]);
-    }
-    s('事故核心信息', [
-      {key:'accident_date',label:'事故日期'},{key:'accident_time',label:'事故时间'},
-      {key:'accident_location',label:'事故地点'},{key:'weather',label:'天气状况'},
-      {key:'liability',label:'交警责任认定'},{key:'liability_ratio',label:'责任比例'},
-      {key:'reported',label:'是否已报案'},{key:'report_no',label:'报案号'},
-      {key:'accident_type',label:'事故形态'},{key:'commercial',label:'是否营运车辆'},{key:'work_related',label:'是否涉工伤'}
-    ]);
-    s('保险信息', [
-      {key:'insurance',label:'己方险种'},{key:'insurer',label:'己方保险公司'},{key:'policy_info',label:'己方保单号'},
-      {key:'opposite_insurance_type',label:'对方险种'},{key:'opposite_insurer',label:'对方保险公司'},{key:'opposite_policy_info',label:'对方保单号'}
-    ]);
-    // Property damage
-    var propFields = [{key:'vehicle_type',label:'车辆类型'},{key:'drivable',label:'是否可行驶'},{key:'vehicle_damage',label:'车辆损失金额'},{key:'repair_status',label:'维修状态'},{key:'other_property_loss',label:'其他财产损失'}];
-    var hasProp = propFields.some(function(f){ return vals[f.key]; });
-    if (hasProp) s('财产损失', propFields);
-    // Criminal risk
-    if (vals.criminal_risk) s('刑事风险提示', [{key:'criminal_risk',label:'涉及刑事风险'},{key:'criminal_note',label:'补充说明'}]);
-    // Demands
-    if (vals.demands) s('核心诉求', [{key:'demands',label:'诉求'},{key:'other_demands',label:'其他诉求'}]);
-    // Litigation
-    if (vals.litigation_status) s('诉讼状态', [{key:'litigation_status',label:'诉讼状态'},{key:'case_no',label:'案号'},{key:'case_cause',label:'案由'}]);
-    // Notes
-    if (vals.additional_notes) {
-      h += '<h2>补充说明</h2>';
-      h += '<div style="font-size:13px;line-height:1.6;">' + vals.additional_notes.replace(/\n/g,'<br>') + '</div>';
-    }
-    // Filler
-    if (vals.filler_name || vals.filler_phone) s('填写人信息', [
-      {key:'filler_name',label:'填写人姓名'},{key:'filler_phone',label:'填写人电话'},{key:'filler_relation',label:'与当事人关系'}
-    ]);
-    h += '</body></html>';
-    var printWin = window.open('', '_blank', 'width=900,height=700');
-    printWin.document.write(h);
-    printWin.document.close();
-    printWin.focus();
-    setTimeout(function() { printWin.print(); }, 500);
+    if (overlay) overlay.classList.remove('active');
+    // Print using browser's built-in print (print CSS hides no-print elements)
+    setTimeout(function() { window.print(); }, 400);
   }
 
   function clearForm() {
