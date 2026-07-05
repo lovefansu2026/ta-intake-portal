@@ -785,6 +785,33 @@
       <div class="form-row single"><div class="form-group"><label>护理期限及说明</label><input type="text" name="nursing_note" placeholder="如：医嘱建议护理6个月 / 住院期间2人护理 / 需长期护理等"></div></div>
     </div>
 
+    <!-- 3+、被扶养人信息 -->
+    <div class="section">
+      <div class="section-title"><span class="num">3+</span>被扶养人信息</div>
+      <div class="vo-hint">被扶养人生活费是重要赔偿项目。受害人依法应当承担扶养义务的未成年人、丧失劳动能力又无其他生活来源的成年近亲属，均可主张。包括：未成年子女、年迈父母、残疾配偶等。</div>
+      <div class="form-row single">
+        <div class="form-group"><label>是否有需扶养的人</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="has_dependents" value="是" onchange="toggleDependents()"><span class="check-label">是</span></label>
+            <label class="check-item"><input type="radio" name="has_dependents" value="否" checked onchange="toggleDependents()"><span class="check-label">否</span></label>
+            <label class="check-item"><input type="radio" name="has_dependents" value="不确定" onchange="toggleDependents()"><span class="check-label">不确定</span></label>
+          </div>
+        </div>
+      </div>
+      <div id="dependentsSection" style="display:none">
+        <div class="form-row">
+          <div class="form-group">
+            <label>被扶养人人数</label>
+            <div class="injury-count-control">
+              <input type="number" id="dependentsCount" min="0" max="20" value="0" onchange="updateDependents()">
+              <button type="button" class="btn-add-person" onclick="addDependent()">+ 增加被扶养人</button>
+            </div>
+          </div>
+        </div>
+        <div id="dependentsContainer"></div>
+      </div>
+    </div>
+
     <!-- 四、保险信息 -->
     <div class="section">
       <div class="section-title"><span class="num">4</span>保险信息</div>
@@ -1431,6 +1458,8 @@
 
   // ===== Dynamic Injury Person Blocks =====
   var injuryPersonCount = 0;
+  // ===== Dynamic Dependent Blocks =====
+  var dependentCount = 0;
 
   function createInjuryPersonBlock(index) {
     var todayStr = new Date().toISOString().split('T')[0];
@@ -1601,6 +1630,121 @@
       injuryPersonCount = count;
     }
     document.getElementById('injuredCount').value = count;
+    updateProgress();
+  }
+
+  // ===== Dependent (被扶养人) Functions =====
+  function toggleDependents() {
+    var checked = document.querySelector('[name="has_dependents"]:checked');
+    var section = document.getElementById('dependentsSection');
+    if (section && checked) {
+      section.style.display = checked.value === '是' ? '' : 'none';
+    }
+  }
+
+  function createDependentBlock(index) {
+    var block = document.createElement('div');
+    block.className = 'injury-person-block';
+    block.id = 'dependent_' + index;
+    block.innerHTML =
+      '<div class="injury-person-header">' +
+        '<div class="injury-person-title"><span class="person-num">' + index + '</span> 被扶养人 ' + index + '</div>' +
+        '<button type="button" class="btn-remove-person" onclick="removeDependent(' + index + ')">移除</button>' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<div class="form-group"><label>姓名</label><input type="text" name="dep_name_' + index + '" placeholder="被扶养人姓名"></div>' +
+        '<div class="form-group"><label>与受害人关系</label>' +
+          '<select name="dep_relation_' + index + '">' +
+            '<option value="">请选择</option>' +
+            '<option value="子女">子女</option>' +
+            '<option value="父亲">父亲</option>' +
+            '<option value="母亲">母亲</option>' +
+            '<option value="配偶">配偶</option>' +
+            '<option value="祖父母/外祖父母">祖父母/外祖父母</option>' +
+            '<option value="孙子女/外孙子女">孙子女/外孙子女</option>' +
+            '<option value="其他">其他</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<div class="form-group"><label>出生日期</label>' +
+          '<div class="composite-date-input">' +
+            '<input type="text" class="cdi-year" maxlength="4" placeholder="YYYY" inputmode="numeric">' +
+            '<span class="cdi-sep">-</span>' +
+            '<input type="text" class="cdi-month" maxlength="2" placeholder="MM" inputmode="numeric">' +
+            '<span class="cdi-sep">-</span>' +
+            '<input type="text" class="cdi-day" maxlength="2" placeholder="DD" inputmode="numeric">' +
+            '<input type="hidden" name="dep_birthdate_' + index + '">' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-group"><label>其他扶养义务人数</label>' +
+          '<select name="dep_other_obligors_' + index + '">' +
+            '<option value="">请选择</option>' +
+            '<option value="0">无其他扶养人</option>' +
+            '<option value="1">1人</option>' +
+            '<option value="2">2人</option>' +
+            '<option value="3">3人</option>' +
+            '<option value="4及以上">4人及以上</option>' +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-row single">' +
+        '<div class="form-group"><label>备注</label><input type="text" name="dep_note_' + index + '" placeholder="如：在读小学 / 已丧失劳动能力 / 无其他收入来源等"></div>' +
+      '</div>';
+    return block;
+  }
+
+  function addDependent() {
+    dependentCount++;
+    document.getElementById('dependentsCount').value = dependentCount;
+    var container = document.getElementById('dependentsContainer');
+    container.appendChild(createDependentBlock(dependentCount));
+    updateProgress();
+  }
+
+  function removeDependent(index) {
+    var block = document.getElementById('dependent_' + index);
+    if (block) {
+      block.remove();
+      dependentCount--;
+      document.getElementById('dependentsCount').value = dependentCount;
+      // Re-number remaining blocks
+      var blocks = document.querySelectorAll('#dependentsContainer .injury-person-block');
+      blocks.forEach(function(b, i) {
+        var titleEl = b.querySelector('.injury-person-title');
+        var numEl = b.querySelector('.person-num');
+        if (titleEl && numEl) {
+          var newIdx = i + 1;
+          numEl.textContent = newIdx;
+          titleEl.innerHTML = '';
+          titleEl.appendChild(numEl);
+          titleEl.appendChild(document.createTextNode(' 被扶养人 ' + newIdx));
+        }
+      });
+      updateProgress();
+    }
+  }
+
+  function updateDependents() {
+    var count = parseInt(document.getElementById('dependentsCount').value) || 0;
+    if (count < 0) count = 0;
+    if (count > 20) count = 20;
+    var container = document.getElementById('dependentsContainer');
+    var currentBlocks = container.querySelectorAll('.injury-person-block');
+    var currentCount = currentBlocks.length;
+    if (count > currentCount) {
+      for (var i = currentCount + 1; i <= count; i++) {
+        dependentCount++;
+        container.appendChild(createDependentBlock(dependentCount));
+      }
+    } else if (count < currentCount) {
+      for (var j = currentCount; j > count; j--) {
+        var lastBlock = container.lastElementChild;
+        if (lastBlock) lastBlock.remove();
+      }
+      dependentCount = count;
+    }
+    document.getElementById('dependentsCount').value = count;
     updateProgress();
   }
 
@@ -1997,6 +2141,24 @@
       injuryPersons.push(personData);
     });
 
+    // Collect dynamic dependent data
+    var dependents = [];
+    var depBlocks = document.querySelectorAll('#dependentsContainer .injury-person-block');
+    depBlocks.forEach(function(block, idx) {
+      var depIdx = idx + 1;
+      var depData = {};
+      function depGetVal(name) {
+        var el = block.querySelector('[name="' + name + '_' + depIdx + '"]');
+        return el ? (el.value || '') : '';
+      }
+      depData.name = depGetVal('dep_name');
+      depData.relation = depGetVal('dep_relation');
+      depData.birthdate = depGetVal('dep_birthdate');
+      depData.other_obligors = depGetVal('dep_other_obligors');
+      depData.note = depGetVal('dep_note');
+      dependents.push(depData);
+    });
+
     var now = new Date();
     var rand = Math.random().toString(36).substr(2, 6).toUpperCase();
     var caseId = 'TA-' + now.getFullYear() +
@@ -2007,12 +2169,13 @@
     var deadlines = calculateDeadlines(data);
 
     var payload = {
-      _meta: { case_id: caseId, form_version: '2.2', submit_time: now.toISOString(), skill: 'traffic-accident-intake', config: loadConfigFromURL() },
+      _meta: { case_id: caseId, form_version: '2.3', submit_time: now.toISOString(), skill: 'traffic-accident-intake', config: loadConfigFromURL() },
       sections: {
         basic_info: { name: result.name||'', gender: result.gender||'', birthdate: result.birthdate||'', idcard: result.idcard||'', phone: result.phone||'', emergency_phone: result.emergency_phone||'', address: result.address||'', occupation: result.occupation||'', employer: result.employer||'', over_age_worker: result.over_age_worker||'', party_identity: result.party_identity||'' },
         vehicle_owner: { name: result.vo_name||'', relationship: result.vo_relationship||'', phone: result.vo_phone||'', idcard: result.vo_idcard||'' },
         accident: { date: result.accident_date||'', time: result.accident_time||'', location: result.accident_location||'', weather: result.weather||[], liability: result.liability||'', liability_ratio: result.liability_ratio||'', reported: result.reported||'', report_no: result.report_no||'', accident_type: result.accident_type||'', commercial: result.commercial||'', good_faith_ride: result.good_faith_ride||'', work_related: result.work_related||'' },
         injury_persons: injuryPersons,
+        dependents: { has_dependents: result.has_dependents||'', list: dependents },
         nursing: { dependency: result.nursing_dependency||'', count: result.nursing_count||'', note: result.nursing_note||'' },
         insurance: {
           own_types: result.insurance || [],
