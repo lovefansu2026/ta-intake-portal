@@ -2104,7 +2104,8 @@
     var injuryPersons = [];
     var blocks = document.querySelectorAll('.injury-person-block');
     blocks.forEach(function(block, idx) {
-      var personIdx = idx + 1;
+      // Extract actual index from block ID (e.g., "injuryPerson_2" → "2")
+      var personIdx = block.id.split('_')[1] || (idx + 1);
       var personData = {};
       // Helper to get value from block
       function getVal(name) {
@@ -2145,7 +2146,8 @@
     var dependents = [];
     var depBlocks = document.querySelectorAll('#dependentsContainer .injury-person-block');
     depBlocks.forEach(function(block, idx) {
-      var depIdx = idx + 1;
+      // Extract actual index from block ID (e.g., "dependent_2" → "2")
+      var depIdx = block.id.split('_')[1] || (idx + 1);
       var depData = {};
       function depGetVal(name) {
         var el = block.querySelector('[name="' + name + '_' + depIdx + '"]');
