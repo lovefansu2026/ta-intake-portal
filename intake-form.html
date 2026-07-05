@@ -614,6 +614,15 @@
         <div class="form-group"><label>工作单位</label><input type="text" name="employer" placeholder="工作单位名称"></div>
       </div>
       <div class="form-row single">
+        <div class="form-group"><label>是否超龄劳动者（男≥60周岁/女≥55周岁）</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="over_age_worker" value="是"><span class="check-label">是</span></label>
+            <label class="check-item"><input type="radio" name="over_age_worker" value="否" checked><span class="check-label">否</span></label>
+            <label class="check-item"><input type="radio" name="over_age_worker" value="不清楚"><span class="check-label">不清楚</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row single">
         <div class="form-group"><label><span class="star">*</span>当事人身份</label>
           <div class="check-group">
             <label class="check-item"><input type="radio" name="party_identity" value="司机" required><span class="check-label">司机</span></label>
@@ -706,6 +715,7 @@
             <label class="check-item"><input type="radio" name="accident_type" value="开门杀"><span class="check-label">开门杀</span></label>
             <label class="check-item"><input type="radio" name="accident_type" value="翻车"><span class="check-label">翻车</span></label>
             <label class="check-item"><input type="radio" name="accident_type" value="刮擦"><span class="check-label">刮擦</span></label>
+            <label class="check-item"><input type="radio" name="accident_type" value="好意同乘"><span class="check-label">好意同乘（无偿搭载）</span></label>
             <label class="check-item"><input type="radio" name="accident_type" value="其他"><span class="check-label">其他</span></label>
           </div>
         </div>
@@ -717,6 +727,15 @@
             <label class="check-item"><input type="radio" name="commercial" value="出租车"><span class="check-label">出租车</span></label>
             <label class="check-item"><input type="radio" name="commercial" value="货车"><span class="check-label">货车</span></label>
             <label class="check-item"><input type="radio" name="commercial" value="否"><span class="check-label">否</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="form-group"><label>是否无偿搭载他人（好意同乘）</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="good_faith_ride" value="是"><span class="check-label">是</span></label>
+            <label class="check-item"><input type="radio" name="good_faith_ride" value="否" checked><span class="check-label">否</span></label>
+            <label class="check-item"><input type="radio" name="good_faith_ride" value="不清楚"><span class="check-label">不清楚</span></label>
           </div>
         </div>
       </div>
@@ -830,6 +849,15 @@
         <div class="form-group"><label>维修/定损情况</label>
           <select name="repair_status"><option value="">请选择</option><option value="未定损">未定损</option><option value="已定损">已定损</option><option value="已维修">已维修</option></select>
         </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>车辆是否有改装/加装</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="vehicle_modification" value="无" checked onchange="toggleVehicleMod()"><span class="check-label">无</span></label>
+            <label class="check-item"><input type="radio" name="vehicle_modification" value="有" onchange="toggleVehicleMod()"><span class="check-label">有</span></label>
+          </div>
+        </div>
+        <div class="form-group" id="vehicleModDetail" style="display:none"><label>改装/加装内容</label><input type="text" name="vehicle_modification_detail" placeholder="如：加装尾翼、改装排气、加装保险杠等"></div>
       </div>
       <div class="form-row single"><div class="form-group"><label>其他财物损失</label><input type="text" name="other_property_loss" placeholder="如手机损坏、衣物损坏等"></div></div>
     </div>
@@ -1490,6 +1518,15 @@
             '<select name="disability_level_' + index + '"><option value="">请选择</option><option value="一级">一级</option><option value="二级">二级</option><option value="三级">三级</option><option value="四级">四级</option><option value="五级">五级</option><option value="六级">六级</option><option value="七级">七级</option><option value="八级">八级</option><option value="九级">九级</option><option value="十级">十级</option></select>' +
           '</div>' +
         '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label>受害人特殊体质/既往病史</label>' +
+            '<div class="check-group">' +
+              '<label class="check-item"><input type="radio" name="special_constitution_' + index + '" value="无" checked onchange="toggleSpecialConstitution(' + index + ')"><span class="check-label">无</span></label>' +
+              '<label class="check-item"><input type="radio" name="special_constitution_' + index + '" value="有" onchange="toggleSpecialConstitution(' + index + ')"><span class="check-label">有</span></label>' +
+            '</div>' +
+          '</div>' +
+          '<div class="form-group special-constitution-detail-' + index + '" style="display:none"><label>具体说明</label><input type="text" name="special_constitution_detail_' + index + '" placeholder="如：骨质疏松、腰椎间盘突出、旧伤等"></div>' +
+        '</div>' +
       '</div>' +
       // ===== Death fields (hidden by default, shown when deceased) =====
       '<div class="death-fields death-fields-' + index + '" style="display:none">' +
@@ -1606,6 +1643,22 @@
       });
     }
     updateProgress();
+  }
+
+  function toggleSpecialConstitution(index) {
+    var checked = document.querySelector('[name="special_constitution_' + index + '"]:checked');
+    var detail = document.querySelector('.special-constitution-detail-' + index);
+    if (detail && checked) {
+      detail.style.display = checked.value === '有' ? '' : 'none';
+    }
+  }
+
+  function toggleVehicleMod() {
+    var checked = document.querySelector('[name="vehicle_modification"]:checked');
+    var detail = document.getElementById('vehicleModDetail');
+    if (detail && checked) {
+      detail.style.display = checked.value === '有' ? '' : 'none';
+    }
   }
 
   function onPartyTypeChange(index) {
@@ -1935,6 +1988,8 @@
       personData.recovery = getVal('recovery');
       personData.disability_assessed = getRadio('disability_assessed');
       personData.disability_level = getVal('disability_level');
+      personData.special_constitution = getRadio('special_constitution');
+      personData.special_constitution_detail = getVal('special_constitution_detail');
       // Death fields
       personData.death_date = getVal('death_date');
       personData.death_cause = getVal('death_cause');
@@ -1952,11 +2007,11 @@
     var deadlines = calculateDeadlines(data);
 
     var payload = {
-      _meta: { case_id: caseId, form_version: '2.1', submit_time: now.toISOString(), skill: 'traffic-accident-intake', config: loadConfigFromURL() },
+      _meta: { case_id: caseId, form_version: '2.2', submit_time: now.toISOString(), skill: 'traffic-accident-intake', config: loadConfigFromURL() },
       sections: {
-        basic_info: { name: result.name||'', gender: result.gender||'', birthdate: result.birthdate||'', idcard: result.idcard||'', phone: result.phone||'', emergency_phone: result.emergency_phone||'', address: result.address||'', occupation: result.occupation||'', employer: result.employer||'', party_identity: result.party_identity||'' },
+        basic_info: { name: result.name||'', gender: result.gender||'', birthdate: result.birthdate||'', idcard: result.idcard||'', phone: result.phone||'', emergency_phone: result.emergency_phone||'', address: result.address||'', occupation: result.occupation||'', employer: result.employer||'', over_age_worker: result.over_age_worker||'', party_identity: result.party_identity||'' },
         vehicle_owner: { name: result.vo_name||'', relationship: result.vo_relationship||'', phone: result.vo_phone||'', idcard: result.vo_idcard||'' },
-        accident: { date: result.accident_date||'', time: result.accident_time||'', location: result.accident_location||'', weather: result.weather||[], liability: result.liability||'', liability_ratio: result.liability_ratio||'', reported: result.reported||'', report_no: result.report_no||'', accident_type: result.accident_type||'', commercial: result.commercial||'', work_related: result.work_related||'' },
+        accident: { date: result.accident_date||'', time: result.accident_time||'', location: result.accident_location||'', weather: result.weather||[], liability: result.liability||'', liability_ratio: result.liability_ratio||'', reported: result.reported||'', report_no: result.report_no||'', accident_type: result.accident_type||'', commercial: result.commercial||'', good_faith_ride: result.good_faith_ride||'', work_related: result.work_related||'' },
         injury_persons: injuryPersons,
         nursing: { dependency: result.nursing_dependency||'', count: result.nursing_count||'', note: result.nursing_note||'' },
         insurance: {
@@ -1969,7 +2024,7 @@
           opposite_insurer: result.opposite_insurer || '',
           opposite_policy_info: result.opposite_policy_info || ''
         },
-        property: { vehicle_type: result.vehicle_type||'', drivable: result.drivable||'', vehicle_damage: result.vehicle_damage||'', repair_status: result.repair_status||'', other_property_loss: result.other_property_loss||'' },
+        property: { vehicle_type: result.vehicle_type||'', drivable: result.drivable||'', vehicle_damage: result.vehicle_damage||'', repair_status: result.repair_status||'', vehicle_modification: result.vehicle_modification||'', vehicle_modification_detail: result.vehicle_modification_detail||'', other_property_loss: result.other_property_loss||'' },
         criminal: { risks: result.criminal_risk||[], note: result.criminal_note||'' },
         demands: { main: result.demands||[], other: result.other_demands||'' },
         litigation: { status: result.litigation_status||'', case_no: result.case_no||'', case_cause: result.case_cause||'' },
