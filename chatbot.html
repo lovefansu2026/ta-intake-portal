@@ -437,13 +437,24 @@ var flow = {
   over_age_worker: { module:1, type:'options', question:'请问您是否已达到或超过退休年龄？（男≥60岁/女≥55岁）', field:'over_age_worker', options:['是','否','不清楚'], help:'over_age_worker', next:'party_identity' },
   party_identity: { module:1, type:'options', question:'在这次事故中，您是哪一方？', field:'party_identity', options:['司机','车主','乘客','行人','其它'], next:'_check_vo' },
 
+  // Transitions
+  t_basic: { module:1, type:'bot', text:'先了解您的基本信息。', pause:800, next:'name' },
+  t_accident: { module:2, type:'bot', text:'接下来了解事故情况。', pause:800, next:'accident_date' },
+  t_nursing: { module:4, type:'bot', text:'接下来了解护理情况。', pause:800, next:'nursing' },
+  t_insurance: { module:5, type:'bot', text:'下面了解保险相关信息。', pause:800, next:'insurance_own' },
+  t_property: { module:6, type:'bot', text:'接下来了解财产损失情况。', pause:800, next:'vehicle_type' },
+  t_criminal: { module:7, type:'bot', text:'需要确认一些重要事项。', pause:800, next:'criminal_risk' },
+  t_demands: { module:8, type:'bot', text:'请告诉我您的主要诉求。', pause:800, next:'demands' },
+  t_litigation: { module:9, type:'bot', text:'了解案件目前的诉讼状态。', pause:800, next:'litigation_status' },
+  t_materials: { module:10, type:'bot', text:'最后，请确认您手头有哪些材料。', pause:800, next:'materials' },
+
   // Vehicle owner (conditional)
   vo_name: { module:1, type:'text', question:'请问车辆所有人是谁？', field:'vo_name', next:'vo_relationship' },
   vo_relationship: { module:1, type:'text', question:'与您的关系是？', field:'vo_relationship', next:'vo_phone' },
-  vo_phone: { module:1, type:'text', question:'能提供车主的联系电话吗？（选填）', field:'vo_phone', next:'accident_date', optional:true },
+  vo_phone: { module:1, type:'text', question:'能提供车主的联系电话吗？（选填）', field:'vo_phone', next:'t_accident', optional:true },
 
   // === Module 2: Accident Info ===
-  accident_date: { module:2, type:'date', question:'接下来了解事故情况。请问事故发生在什么时间？', field:'accident_date', next:'accident_time' },
+  accident_date: { module:2, type:'date', question:'请问事故发生在什么时间？', field:'accident_date', next:'accident_time' },
   accident_time: { module:2, type:'text', question:'大概是几点钟？（选填）', field:'accident_time', next:'accident_location', optional:true },
   accident_location: { module:2, type:'text', question:'事故发生在什么地方？', field:'accident_location', next:'weather' },
   weather: { module:2, type:'options', question:'当时的天气怎么样？', field:'weather', options:['晴','雨','雪','雾','其他'], next:'accident_type' },
@@ -456,7 +467,7 @@ var flow = {
   work_related: { module:2, type:'options', question:'这次事故是否涉及工伤？（比如上下班途中、因公外出）', field:'work_related', options:['是','否','不确定'], next:'injury_count' },
 
   // === Module 3: Injury Persons ===
-  injury_count: { module:3, type:'options', question:'这次事故中，有多少人受伤或遇难？', field:'injury_count', options:['0人','1人','2人','3人','4人以上','不清楚'], next:'_start_persons' },
+  injury_count: { module:3, type:'options', question:'这次事故中，有多少人受伤或遇难？', field:'injury_count', options:['0人','1人','2人','3人','具体人数'], next:'_start_persons' },
 
   // Person sub-flow
   p_type: { module:3, type:'options', question:'这位是？', field:'person_type', options:['本人','家属','其他人'], next:'p_name' },
@@ -512,7 +523,7 @@ var flow = {
 
   // === Module 7: Criminal Risk ===
   criminal_risk: { module:7, type:'multi', question:'需要提示一些刑事风险。请确认是否存在以下情形：（可多选）', field:'criminal_risk', options:['造成人员死亡','重伤3人以上','酒驾或毒驾','无证驾驶','逃逸','均不存在'], next:'_check_criminal' },
-  criminal_note: { module:7, type:'bot', text:'【重要提示】根据您描述的情况，可能涉及刑事犯罪风险。建议尽快咨询律师。', next:'demands' },
+  criminal_note: { module:7, type:'custom' },
 
   // === Module 8: Demands ===
   demands: { module:8, type:'multi', question:'您的主要诉求是什么？（可多选）', field:'demands', options:['医疗费','误工费','护理费','残疾赔偿金','死亡赔偿金','被扶养人生活费','精神损害抚慰金','财产损失','其他'], next:'other_demands' },
@@ -546,6 +557,7 @@ var progressFill = document.getElementById('progressFill');
 var progressModule = document.getElementById('progressModule');
 var progressPercent = document.getElementById('progressPercent');
 var lastModule = -1;
+var _skipLink = null;
 
 // ===== Engine =====
 function go(stepId) {
@@ -554,7 +566,7 @@ function go(stepId) {
 
   // Conditional routing
   var routes = {
-    '_check_vo': function() { go(state.answers.party_identity !== '车主' ? 'vo_name' : 'accident_date'); },
+    '_check_vo': function() { go(state.answers.party_identity !== '车主' ? 'vo_name' : 't_accident'); },
     '_start_persons': startPersonsLoop,
     '_check_hosp': function() {
       var p = state.injuryPersons[state.currentPersonIndex];
@@ -574,26 +586,31 @@ function go(stepId) {
       go(p && p.is_deceased === '是' ? 'p_death_date' : '_next_person');
     },
     '_next_person': nextPerson,
-    '_check_dependents': function() { go(state.answers.has_dependents === '是' ? 'dep_count' : 'nursing'); },
+    '_check_dependents': function() { go(state.answers.has_dependents === '是' ? 'dep_count' : 't_nursing'); },
     '_start_dependents': startDepsLoop,
     '_next_dependent': nextDep,
-    '_check_nursing': function() { go(state.answers.nursing_dependency === '需要' ? 'nursing_count' : 'insurance_own'); },
+    '_check_nursing': function() { go(state.answers.nursing_dependency === '需要' ? 'nursing_count' : 't_insurance'); },
     '_check_own_insurer': function() {
       var o = state.answers.insurance_own || [];
-      go(o.length && o.indexOf('无')<0 && o.indexOf('不清楚')<0 ? 'own_insurer' : 'insurance_opposite');
+      go(o.length && o.indexOf('无')<0 && o.indexOf('不清楚')<0 ? 'own_insurer' : 't_insurance');
     },
     '_check_opp_insurer': function() {
       var o = state.answers.insurance_opposite || [];
-      go(o.length && o.indexOf('不清楚')<0 ? 'opp_insurer' : 'vehicle_type');
+      go(o.length && o.indexOf('不清楚')<0 ? 'opp_insurer' : 't_property');
     },
     '_check_mod': function() { go(state.answers.vehicle_modification === '有' ? 'vehicle_mod_detail' : 'other_loss'); },
     '_check_criminal': function() {
       var r = state.answers.criminal_risk || [];
-      go(r.length && r.indexOf('均不存在')<0 ? 'criminal_note' : 'demands');
+      if (r.length && r.indexOf('均不存在')<0) {
+        var labels = {'造成人员死亡':'人员死亡','重伤3人以上':'重伤3人以上','酒驾或毒驾':'酒驾/毒驾','无证驾驶':'无证驾驶','逃逸':'肇事逃逸'};
+        var items = r.filter(function(x){return x!=='均不存在';}).map(function(x){return labels[x]||x;});
+        addBot('【重要提示】根据您描述的情况（' + items.join('、') + '），可能涉及刑事犯罪风险。建议尽快咨询律师。');
+        setTimeout(function() { go('t_demands'); }, 800);
+      } else { go('t_demands'); }
     },
     '_check_litigation': function() {
       var s = state.answers.litigation_status;
-      go(s==='已起诉'||s==='已判决'||s==='已执行' ? 'case_no' : 'materials');
+      go(s==='已起诉'||s==='已判决'||s==='已执行' ? 'case_no' : 't_materials');
     },
     '_check_filler': function() { go(state.answers.filler_check === '他人代填' ? 'filler_name' : '_final'); },
     '_final': showFinal
@@ -608,6 +625,7 @@ function go(stepId) {
 
   switch (step.type) {
     case 'bot': renderBot(step); break;
+    case 'custom': break; // handled by routing functions
     case 'confirm': renderConfirm(step); break;
     case 'text': renderText(step); break;
     case 'options': renderOptions(step); break;
@@ -621,7 +639,7 @@ function go(stepId) {
 // ===== Renderers =====
 function renderBot(step) {
   addBot(step.text);
-  setTimeout(function() { go(step.next); }, 500);
+  setTimeout(function() { go(step.next); }, step.pause || 500);
 }
 
 function renderConfirm(step) {
@@ -641,8 +659,22 @@ function renderText(step) {
   showInput(function(v) {
     save(step.field, v);
     hideInput();
+    if (_skipLink) { _skipLink.remove(); _skipLink = null; }
     setTimeout(function() { go(step.next); }, 200);
   });
+  if (step.optional) {
+    _skipLink = mk('button','opt-btn');
+    _skipLink.textContent = '跳过';
+    _skipLink.style.cssText = 'margin:4px 0 12px;font-size:13px;padding:4px 12px;opacity:0.7;';
+    _skipLink.onclick = function() {
+      addUser('（跳过）');
+      hideInput();
+      _skipLink.remove(); _skipLink = null;
+      setTimeout(function() { go(step.next); }, 200);
+    };
+    chatArea.appendChild(_skipLink);
+    scroll();
+  }
 }
 
 function renderOptions(step) {
@@ -669,13 +701,24 @@ function renderMulti(step) {
   addBot(replaceVars(step.question));
   var c = mk('div','multi-group');
   var sel = [];
+  var negOpts = ['无','不清楚','均不存在'];
   step.options.forEach(function(opt) {
     var it = mk('div','multi-item');
     it.innerHTML = '<div class="check-box"></div><div class="check-label">' + opt + '</div>';
     it.onclick = function() {
       var i = sel.indexOf(opt);
       if (i>=0) { sel.splice(i,1); it.classList.remove('checked'); }
-      else { sel.push(opt); it.classList.add('checked'); }
+      else {
+        if (negOpts.indexOf(opt) >= 0) {
+          sel = []; c.querySelectorAll('.multi-item').forEach(function(x) { x.classList.remove('checked'); });
+        } else {
+          sel = sel.filter(function(s) { return negOpts.indexOf(s) < 0; });
+          c.querySelectorAll('.multi-item').forEach(function(x) {
+            if (negOpts.indexOf(x.querySelector('.check-label').textContent) >= 0) x.classList.remove('checked');
+          });
+        }
+        sel.push(opt); it.classList.add('checked');
+      }
     };
     c.appendChild(it);
   });
@@ -702,21 +745,28 @@ function renderDate(step) {
   cb.textContent = step.optional ? '跳过' : '确认';
   g.appendChild(yi); g.appendChild(txt('-','sep')); g.appendChild(mi); g.appendChild(txt('-','sep')); g.appendChild(di); g.appendChild(cb);
   chatArea.appendChild(g);
+  var hint = mk('div','help-tip'); hint.style.cssText='font-size:12px;padding:4px 8px;margin-top:-4px;'; hint.textContent='请按 年-月-日 格式填写，如 1990-05-20';
+  chatArea.appendChild(hint);
   scroll();
 
-  cb.onclick = function() {
+  function doConfirm() {
     var y=yi.value, m=mi.value, d=di.value;
-    if (!y && step.optional) { addUser('（跳过）'); g.remove(); setTimeout(function(){go(step.next);},200); return; }
+    if (!y && step.optional) { addUser('（跳过）'); g.remove(); hint.remove(); setTimeout(function(){go(step.next);},200); return; }
     if (!y||!m||!d) { alert('请填写完整日期'); return; }
+    var yi2=parseInt(y), mi2=parseInt(m), di2=parseInt(d);
+    var dt = new Date(yi2, mi2-1, di2);
+    if (dt.getFullYear()!==yi2 || dt.getMonth()!==mi2-1 || dt.getDate()!==di2) { alert('日期无效，请检查'); return; }
     var ds = y+'-'+m.padStart(2,'0')+'-'+d.padStart(2,'0');
-    addUser(ds); save(step.field, ds); g.remove(); setTimeout(function(){go(step.next);},200);
-  };
+    addUser(ds); save(step.field, ds); g.remove(); hint.remove(); setTimeout(function(){go(step.next);},200);
+  }
+  cb.onclick = doConfirm;
+  yi.onkeydown = mi.onkeydown = di.onkeydown = function(e) { if (e.key==='Enter') { e.preventDefault(); doConfirm(); } };
 }
 
 function renderNumber(step) {
   addBot(replaceVars(step.question));
   var g = mk('div','number-input-group');
-  var ni = mk('input'); ni.type='number'; ni.min='0'; ni.placeholder='数字';
+  var ni = mk('input'); ni.type='number'; ni.min='0'; ni.placeholder='数字'; ni.inputMode='numeric';
   var cb = mk('button','date-confirm-btn');
   cb.textContent = step.optional ? '跳过' : '确认';
   g.appendChild(ni); g.appendChild(cb);
@@ -724,23 +774,25 @@ function renderNumber(step) {
   scroll();
   setTimeout(function(){ni.focus();},100);
 
-  cb.onclick = function() {
+  function doConfirm() {
     var v = ni.value;
     if (!v && step.optional) { addUser('（跳过）'); g.remove(); setTimeout(function(){go(step.next);},200); return; }
     if (!v) { alert('请输入数字'); return; }
+    if (parseFloat(v) < 0) { alert('请输入非负数'); return; }
     addUser(v); save(step.field, v); g.remove(); setTimeout(function(){go(step.next);},200);
-  };
+  }
+  cb.onclick = doConfirm;
+  ni.onkeydown = function(e) { if (e.key==='Enter') { e.preventDefault(); doConfirm(); } };
 }
 
 function showFinal() {
   addBot('感谢您的配合！我已记录您提供的所有信息。');
   setTimeout(function() {
-    addBot('律师会尽快分析您的情况，并与您联系。');
+    addBot('请将下载的数据文件发送给律师，律师会尽快分析您的情况并与您联系。');
     setTimeout(function() {
       var s = mk('div','final-screen');
-      s.innerHTML = '<div class="icon">&#9989;</div><h3>信息收集完毕</h3><p>您可以提交信息给律师，或下载数据保存。</p>' +
-        '<div class="final-btns"><button class="final-btn primary" onclick="submitData()">提交给律师</button>' +
-        '<button class="final-btn secondary" onclick="downloadData()">下载数据保存</button></div>';
+      s.innerHTML = '<div class="icon">&#9989;</div><h3>信息收集完毕</h3><p>请下载数据文件并发送给律师。</p>' +
+        '<div class="final-btns"><button class="final-btn primary" onclick="downloadData()">下载数据文件</button></div>';
       chatArea.appendChild(s);
       scroll();
     }, 500);
@@ -749,8 +801,42 @@ function showFinal() {
 
 // ===== Persons Loop =====
 function startPersonsLoop() {
-  var c = parseCount(state.answers.injury_count);
-  if (c === 0) { go('has_dependents'); return; }
+  var ans = state.answers.injury_count;
+  if (ans === '0人') {
+    addBot('了解，没有人员受伤。接下来了解被扶养人情况。');
+    setTimeout(function() { go('has_dependents'); }, 600);
+    return;
+  }
+  if (ans === '不清楚') {
+    state.actualPersonCount = 1;
+    addBot('好的，我先按1位受伤人员来登记，后续可以补充。');
+    setTimeout(function() { beginPersonsLoop(); }, 800);
+    return;
+  }
+  if (ans === '具体人数') {
+    addBot('请告诉我具体有几位受伤人员？');
+    var g = mk('div','number-input-group');
+    var ni = mk('input'); ni.type='number'; ni.min='1'; ni.placeholder='人数'; ni.inputMode='numeric';
+    var cb = mk('button','date-confirm-btn'); cb.textContent='确认';
+    g.appendChild(ni); g.appendChild(cb);
+    chatArea.appendChild(g); scroll();
+    setTimeout(function(){ni.focus();},100);
+    cb.onclick = function() {
+      var v = parseInt(ni.value);
+      if (!v || v < 1) { alert('请输入有效人数'); return; }
+      addUser(v + '人');
+      state.actualPersonCount = v;
+      g.remove();
+      setTimeout(function() { beginPersonsLoop(); }, 300);
+    };
+    ni.onkeydown = function(e) { if (e.key==='Enter') { e.preventDefault(); cb.onclick(); } };
+    return;
+  }
+  state.actualPersonCount = parseCount(ans);
+  beginPersonsLoop();
+}
+
+function beginPersonsLoop() {
   state.currentPersonIndex = 0;
   state.inPersonFlow = true;
   state.personSubPhase = 'main';
@@ -767,7 +853,7 @@ function startOnePerson() {
 }
 
 function nextPerson() {
-  var c = parseCount(state.answers.injury_count);
+  var c = state.actualPersonCount || 1;
   state.inPersonFlow = false;
   state.personSubPhase = null;
   state.currentPersonIndex++;
@@ -871,17 +957,20 @@ function replaceVars(text) {
     if (key === 'dep_label') {
       var d = state.dependents[state.currentDepIndex];
       if (d && d.dep_name) return d.dep_name;
+      if (d && d.dep_relation) return d.dep_relation;
       return '该被扶养人';
     }
     if (key === 'n') return (state.currentDepIndex + 1);
-    return state.answers[key] || '';
+    if (state.answers.hasOwnProperty(key)) return state.answers[key] || '';
+    console.warn('Unknown template variable:', key);
+    return '';
   });
 }
 
 // ===== Progress =====
 function updateProgress(mod) {
   if (mod !== lastModule) {
-    if (lastModule >= 0 && typeof mod === 'number' && mod > 0) {
+    if (lastModule >= 0 && mod !== 0) {
       var d = mk('div','module-divider');
       d.textContent = moduleNames[mod] || '';
       chatArea.appendChild(d);
@@ -916,9 +1005,12 @@ go = function(stepId) {
   if (stepId === 'p_name' && state.inPersonFlow) {
     var p = state.injuryPersons[state.currentPersonIndex];
     if (p && p.person_type === '本人') {
+      addBot('请问您的姓名？');
       p.injured_name = state.answers.name || '';
-      addUser(state.answers.name || '（自动填入）');
-      setTimeout(function() { go('p_part'); }, 250);
+      setTimeout(function() {
+        addUser(state.answers.name || '（自动填入）');
+        setTimeout(function() { go('p_part'); }, 250);
+      }, 300);
       return;
     }
   }
@@ -1000,7 +1092,7 @@ function mk(tag, cls) { var e = document.createElement(tag); if (cls) e.classNam
 function txt(t, cls) { var s = document.createElement('span'); if (cls) s.className = cls; s.textContent = t; return s; }
 function parseCount(s) {
   if (s==='0人') return 0; if (s==='1人') return 1; if (s==='2人') return 2;
-  if (s==='3人') return 3; if (s==='4人以上') return 4; if (s==='不清楚') return 1; return 0;
+  if (s==='3人') return 3; return parseInt(s) || 0;
 }
 
 // ===== Init =====
