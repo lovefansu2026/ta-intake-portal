@@ -354,6 +354,24 @@ body {
 .final-btn.primary { background: var(--primary); color: #fff; }
 .final-btn.secondary { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); }
 
+/* Review */
+.review-list { margin: 8px 0; }
+.review-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; margin: 4px 0;
+  background: #f8f9fb; border-radius: var(--radius-sm);
+  cursor: pointer; transition: background 0.2s;
+}
+.review-item:hover { background: #eef1f6; }
+.review-item .r-label { font-size: 13px; color: var(--text-light); flex-shrink: 0; margin-right: 12px; }
+.review-item .r-value { font-size: 14px; color: var(--text); flex: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-item .r-edit { font-size: 12px; color: var(--primary); margin-left: 8px; flex-shrink: 0; }
+.review-confirm-btn {
+  display: block; width: 100%; padding: 14px; margin-top: 12px;
+  background: var(--primary); color: #fff; border: none;
+  border-radius: var(--radius-sm); font-size: 15px; font-weight: 500; cursor: pointer;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   #app { max-width: 100%; box-shadow: none; }
@@ -485,13 +503,13 @@ var flow = {
   p_disability_level: { module:3, type:'options', question:'伤残等级是？', field:'disability_level', options:['一级','二级','三级','四级','五级','六级','七级','八级','九级','十级'], next:'p_sc' },
   p_sc: { module:3, type:'options', question:'{person_label}是否有特殊体质或既往病史？', field:'special_constitution', options:['无','有'], help:'special_constitution', next:'_check_sc' },
   p_sc_detail: { module:3, type:'text', question:'请具体说明是什么情况？', field:'special_constitution_detail', next:'p_death' },
-  p_death: { module:3, type:'options', question:'{person_label}是否不幸遇难？', field:'is_deceased', options:['否','是'], next:'_check_death' },
+  p_death: { module:3, type:'options', question:'关于{person_label}的伤情结果，需要确认一下：是否因本次事故导致死亡？', field:'is_deceased', options:['否','是'], next:'_check_death' },
   p_death_date: { module:3, type:'date', question:'死亡日期？', field:'death_date', next:'p_death_cause' },
   p_death_cause: { module:3, type:'options', question:'死亡原因是？', field:'death_cause', options:['当场死亡','送医抢救无效','住院期间死亡','出院后死亡','其他'], next:'p_death_diag' },
   p_death_diag: { module:3, type:'text', question:'死亡诊断或尸检结论？', field:'death_diagnosis', next:'_next_person' },
 
   // === Module 3+: Dependents ===
-  has_dependents: { module:'3+', type:'options', question:'接下来了解被扶养人情况。被扶养人生活费是重要赔偿项目。请问您是否有需要扶养的人？', field:'has_dependents', options:['是','否','不确定'], help:'has_dependents', next:'_check_dependents' },
+  has_dependents: { module:'3+', type:'options', question:'因为有人员死亡或伤残，涉及被扶养人生活费赔偿。请问伤者/死者是否有需要扶养的人？（如未成年子女、无劳动能力的父母等）', field:'has_dependents', options:['是','否','不确定'], help:'has_dependents', next:'_check_dependents' },
   dep_count: { module:'3+', type:'number', question:'请问有几位需要扶养的人？', field:'dependents_count', next:'_start_dependents' },
   d_name: { module:'3+', type:'text', question:'请告诉我第{n}位被扶养人的姓名。', field:'dep_name', next:'d_relation' },
   d_relation: { module:'3+', type:'options', question:'与{dep_label}是什么关系？', field:'dep_relation', options:['子女','父亲','母亲','配偶','祖父母/外祖父母','孙子女/外孙子女','其他'], next:'d_birthdate' },
@@ -543,7 +561,10 @@ var flow = {
   filler_check: { module:11, type:'options', question:'最后，请问是您本人填写的吗？', field:'filler_check', options:['是本人','他人代填'], next:'_check_filler' },
   filler_name: { module:11, type:'text', question:'代填人姓名？', field:'filler_name', next:'filler_phone' },
   filler_phone: { module:11, type:'text', question:'代填人电话？', field:'filler_phone', next:'filler_relation' },
-  filler_relation: { module:11, type:'text', question:'与您的关系？', field:'filler_relation', next:'_final' },
+  filler_relation: { module:11, type:'text', question:'与您的关系？', field:'filler_relation', next:'review' },
+
+  // Review step
+  review: { module:11, type:'custom' },
 
   final: { module:11, type:'final' }
 };
@@ -612,7 +633,8 @@ function go(stepId) {
       var s = state.answers.litigation_status;
       go(s==='已起诉'||s==='已判决'||s==='已执行' ? 'case_no' : 't_materials');
     },
-    '_check_filler': function() { go(state.answers.filler_check === '他人代填' ? 'filler_name' : '_final'); },
+    '_check_filler': function() { go(state.answers.filler_check === '他人代填' ? 'filler_name' : 'review'); },
+    'review': showReview,
     '_final': showFinal
   };
 
@@ -785,6 +807,135 @@ function renderNumber(step) {
   ni.onkeydown = function(e) { if (e.key==='Enter') { e.preventDefault(); doConfirm(); } };
 }
 
+function showReview() {
+  addBot('以下是您填写的信息，请核对。点击任意条目可以修改：');
+
+  var items = [];
+  // Main answers
+  var fieldLabels = {
+    name:'姓名', gender:'性别', age:'年龄', id_number:'身份证号', phone:'联系电话',
+    address:'住址', occupation:'职业', monthly_income:'月收入(元)',
+    over_age_worker:'是否超龄劳动者', party_identity:'事故中身份',
+    vo_name:'车主姓名', vo_relationship:'与车主关系', vo_phone:'车主电话',
+    accident_date:'事故日期', accident_time:'事故时间', accident_location:'事故地点',
+    weather:'天气', accident_type:'事故类型', liability:'责任认定',
+    reported:'是否报警', report_no:'事故认定书编号', commercial:'是否营运车辆',
+    good_faith_ride:'是否好意同乘', work_related:'是否涉及工伤',
+    injury_count:'受伤人数',
+    nursing_dependency:'是否需要护理', nursing_count:'护理人数', nursing_note:'护理备注',
+    insurance_own:'己方保险', own_insurer:'己方保险公司', own_policy_info:'己方保单信息',
+    insurance_opposite:'对方保险', opposite_insurer:'对方保险公司', opposite_policy_info:'对方保单信息',
+    vehicle_type:'车辆类型', drivable:'车辆能否行驶', vehicle_damage:'车辆损失(元)',
+    repair_status:'维修状态', vehicle_modification:'车辆改装', vehicle_modification_detail:'改装详情',
+    other_property_loss:'其他财产损失',
+    criminal_risk:'刑事风险项',
+    demands:'诉求', other_demands:'其他诉求',
+    litigation_status:'诉讼阶段', case_no:'案号', case_cause:'案由',
+    materials:'已有材料', other_materials:'其他材料',
+    additional_notes:'补充说明', filler_check:'填写人'
+  };
+  for (var key in fieldLabels) {
+    if (state.answers.hasOwnProperty(key) && state.answers[key] !== '' && state.answers[key] !== undefined) {
+      var val = state.answers[key];
+      if (Array.isArray(val)) val = val.join('、');
+      items.push({ field: key, label: fieldLabels[key], value: String(val) });
+    }
+  }
+  // Person info
+  state.injuryPersons.forEach(function(p, i) {
+    var prefix = '伤者' + (i+1);
+    if (p.person_type) items.push({ field:'person_'+i+'_type', label: prefix+'身份', value: p.person_type });
+    if (p.injured_name) items.push({ field:'person_'+i+'_name', label: prefix+'姓名', value: p.injured_name });
+    if (p.injury_part) items.push({ field:'person_'+i+'_part', label: prefix+'伤情部位', value: p.injury_part });
+    if (p.hospital) items.push({ field:'person_'+i+'_hospital', label: prefix+'就诊医院', value: p.hospital });
+    if (p.first_visit_date) items.push({ field:'person_'+i+'_fvd', label: prefix+'首次就诊日期', value: p.first_visit_date });
+    if (p.diagnosis) items.push({ field:'person_'+i+'_diag', label: prefix+'诊断结果', value: p.diagnosis });
+    if (p.hospitalized) items.push({ field:'person_'+i+'_hosp', label: prefix+'是否住院', value: p.hospitalized });
+    if (p.hosp_start) items.push({ field:'person_'+i+'_hosp_start', label: prefix+'住院开始', value: p.hosp_start });
+    if (p.hosp_end) items.push({ field:'person_'+i+'_hosp_end', label: prefix+'出院日期', value: p.hosp_end });
+    if (p.hosp_days) items.push({ field:'person_'+i+'_hosp_days', label: prefix+'住院天数', value: p.hosp_days });
+    if (p.surgery) items.push({ field:'person_'+i+'_surgery', label: prefix+'是否手术', value: p.surgery });
+    if (p.disability_assessed) items.push({ field:'person_'+i+'_disability', label: prefix+'伤残鉴定', value: p.disability_assessed });
+    if (p.disability_level) items.push({ field:'person_'+i+'_disability_level', label: prefix+'伤残等级', value: p.disability_level });
+    if (p.special_constitution) items.push({ field:'person_'+i+'_sc', label: prefix+'特殊体质', value: p.special_constitution });
+    if (p.special_constitution_detail) items.push({ field:'person_'+i+'_sc_detail', label: prefix+'特殊体质说明', value: p.special_constitution_detail });
+    if (p.is_deceased) items.push({ field:'person_'+i+'_deceased', label: prefix+'是否死亡', value: p.is_deceased });
+    if (p.death_date) items.push({ field:'person_'+i+'_death_date', label: prefix+'死亡日期', value: p.death_date });
+    if (p.death_cause) items.push({ field:'person_'+i+'_death_cause', label: prefix+'死亡原因', value: p.death_cause });
+    if (p.death_diagnosis) items.push({ field:'person_'+i+'_death_diag', label: prefix+'死亡诊断', value: p.death_diagnosis });
+  });
+  // Dependents
+  state.dependents.forEach(function(d, i) {
+    var prefix = '被扶养人'+(i+1);
+    if (d.dep_name) items.push({ field:'dep_'+i+'_name', label: prefix+'姓名', value: d.dep_name });
+    if (d.dep_relation) items.push({ field:'dep_'+i+'_relation', label: prefix+'关系', value: d.dep_relation });
+    if (d.dep_birthdate) items.push({ field:'dep_'+i+'_birthdate', label: prefix+'出生日期', value: d.dep_birthdate });
+    if (d.dep_other_obligors) items.push({ field:'dep_'+i+'_obligors', label: prefix+'共同扶养人', value: d.dep_other_obligors });
+    if (d.dep_note) items.push({ field:'dep_'+i+'_note', label: prefix+'备注', value: d.dep_note });
+  });
+
+  if (items.length === 0) {
+    addBot('（暂无记录）');
+    setTimeout(function() { go('_final'); }, 500);
+    return;
+  }
+
+  var container = mk('div', 'review-list');
+  items.forEach(function(item) {
+    var row = mk('div', 'review-item');
+    row.innerHTML = '<span class="r-label">' + item.label + '</span>' +
+      '<span class="r-value">' + item.value + '</span>' +
+      '<span class="r-edit">修改</span>';
+    row.onclick = function() {
+      // Remove review UI
+      container.remove();
+      if (_reviewConfirmBtn) { _reviewConfirmBtn.remove(); _reviewConfirmBtn = null; }
+      // Ask for new value
+      addBot('请重新输入「' + item.label + '」：');
+      showInput(function(v) {
+        // Update state
+        if (item.field.indexOf('person_') === 0) {
+          var parts = item.field.split('_');
+          var pi = parseInt(parts[1]);
+          var fieldMap = {type:'person_type',name:'injured_name',part:'injury_part',hospital:'hospital',
+            fvd:'first_visit_date',diag:'diagnosis',hosp:'hospitalized',hosp_start:'hosp_start',
+            hosp_end:'hosp_end',hosp_days:'hosp_days',surgery:'surgery',disability:'disability_assessed',
+            disability_level:'disability_level',sc:'special_constitution',sc_detail:'special_constitution_detail',
+            deceased:'is_deceased',death_date:'death_date',death_cause:'death_cause',death_diag:'death_diagnosis'};
+          if (state.injuryPersons[pi]) state.injuryPersons[pi][fieldMap[parts[2]]] = v;
+        } else if (item.field.indexOf('dep_') === 0) {
+          var parts = item.field.split('_');
+          var di = parseInt(parts[1]);
+          var fieldMap2 = {name:'dep_name',relation:'dep_relation',birthdate:'dep_birthdate',
+            obligors:'dep_other_obligors',note:'dep_note'};
+          if (state.dependents[di]) state.dependents[di][fieldMap2[parts[2]]] = v;
+        } else {
+          state.answers[item.field] = v;
+        }
+        addUser(v);
+        hideInput();
+        // Re-show review
+        setTimeout(function() { showReview(); }, 300);
+      });
+    };
+    container.appendChild(row);
+  });
+  chatArea.appendChild(container);
+
+  _reviewConfirmBtn = mk('button', 'review-confirm-btn');
+  _reviewConfirmBtn.textContent = '确认无误，提交';
+  _reviewConfirmBtn.onclick = function() {
+    container.remove();
+    _reviewConfirmBtn.remove();
+    _reviewConfirmBtn = null;
+    go('_final');
+  };
+  chatArea.appendChild(_reviewConfirmBtn);
+  scroll();
+}
+
+var _reviewConfirmBtn = null;
+
 function showFinal() {
   addBot('感谢您的配合！我已记录您提供的所有信息。');
   setTimeout(function() {
@@ -803,8 +954,8 @@ function showFinal() {
 function startPersonsLoop() {
   var ans = state.answers.injury_count;
   if (ans === '0人') {
-    addBot('了解，没有人员受伤。接下来了解被扶养人情况。');
-    setTimeout(function() { go('has_dependents'); }, 600);
+    addBot('了解，没有人员受伤。接下来了解护理情况。');
+    setTimeout(function() { go('t_nursing'); }, 600);
     return;
   }
   if (ans === '不清楚') {
@@ -852,6 +1003,12 @@ function startOnePerson() {
   go('p_type');
 }
 
+function hasDeathOrDisability() {
+  return state.injuryPersons.some(function(p) {
+    return p && (p.is_deceased === '是' || p.disability_assessed === '已做');
+  });
+}
+
 function nextPerson() {
   var c = state.actualPersonCount || 1;
   state.inPersonFlow = false;
@@ -862,7 +1019,12 @@ function nextPerson() {
     setTimeout(function() { startOnePerson(); }, 500);
   } else {
     addBot('所有受伤人员信息已记录。');
-    setTimeout(function() { go('has_dependents'); }, 500);
+    if (hasDeathOrDisability()) {
+      setTimeout(function() { go('has_dependents'); }, 500);
+    } else {
+      addBot('无人死亡或伤残，跳过被扶养人信息。接下来了解护理情况。');
+      setTimeout(function() { go('t_nursing'); }, 600);
+    }
   }
 }
 
