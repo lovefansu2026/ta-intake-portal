@@ -22,6 +22,7 @@
     </ul>
     <div class="nav-actions">
       <button class="theme-toggle" id="themeToggle" title="切换主题">&#9790;</button>
+      <a href="chatbot.html" class="btn btn-sm btn-primary">&#129302; 阿喵智能问询</a>
       <a href="team.html" class="btn btn-sm btn-secondary">&#128274; 工作台</a>
     </div>
   </nav>
@@ -31,18 +32,20 @@
 
     <!-- Hero -->
     <div class="hero">
-      <div class="hero-subtitle-wrap">
-        <p class="hero-subtitle-line1">专业高效的交通事故案件全流程管理工具</p>
-        <p class="hero-subtitle-line2">从首次咨询到立案启动、案件代理、执行回款全流程服务</p>
-      </div>
       <div class="hero-cta">
-        <button class="btn-hero btn-hero-primary" onclick="location.hash='#/intake'">立即填写问询单</button>
+        <button class="btn-hero btn-hero-primary" onclick="location.href='chatbot.html'">&#129302; 阿喵智能问询</button>
+        <button class="btn-hero btn-hero-secondary" onclick="location.hash='#/intake'">填写问询单</button>
         <button class="btn-hero btn-hero-secondary" onclick="location.hash='#/process'">了解服务流程</button>
       </div>
     </div>
 
     <!-- Service Cards -->
     <div class="service-grid">
+      <div class="service-card" style="cursor:pointer;" onclick="location.href='chatbot.html'">
+        <div class="service-icon">&#129302;</div>
+        <h3>阿喵智能问询</h3>
+        <p>对话式智能问询，由线上助理阿喵引导您逐步完成信息采集，轻松便捷，支持随时修改回看</p>
+      </div>
       <div class="service-card">
         <div class="service-icon">&#128203;</div>
         <h3>在线问询</h3>
