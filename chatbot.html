@@ -1254,7 +1254,6 @@ function submitData() {
 
 function downloadData() {
   var p = collectPayload();
-  queueForTeam(p); // ensure queued even if called directly
   downloadJSON(p);
   addBot('数据已下载保存。');
 }

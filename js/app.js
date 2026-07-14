@@ -57,7 +57,149 @@
     if (el) el.style.display = 'none';
   }
 
+  // ===== Calculate Deadlines from Submission Data =====
+  // Generate deadline reminders based on accident date and case characteristics
+  function calculateDeadlinesFromSubmission(submission) {
+    var deadlines = [];
+    var sections = submission.sections || {};
+    var accident = sections.accident || {};
+    var accDate = accident.date || '';
+
+    if (!accDate) return deadlines;
+
+    // Parse accident date
+    var accDateObj = new Date(accDate + 'T00:00:00');
+    if (isNaN(accDateObj.getTime())) return deadlines;
+
+    // Helper: add years/months/days to a date
+    function addDays(dateStr, days) {
+      var d = new Date(dateStr + 'T00:00:00');
+      d.setDate(d.getDate() + days);
+      return d.toISOString().slice(0, 10);
+    }
+    function addYears(dateStr, years) {
+      var d = new Date(dateStr + 'T00:00:00');
+      d.setFullYear(d.getFullYear() + years);
+      return d.toISOString().slice(0, 10);
+    }
+
+    // Helper: calculate remaining days text
+    function remainingText(deadlineDate) {
+      var now = new Date();
+      now.setHours(0, 0, 0, 0);
+      var dl = new Date(deadlineDate + 'T00:00:00');
+      var diff = Math.round((dl - now) / (1000 * 60 * 60 * 24));
+      if (diff < 0) return '已逾期' + Math.abs(diff) + '天';
+      if (diff === 0) return '今日到期';
+      return '剩余' + diff + '天';
+    }
+
+    // Helper: check if deadline is urgent (within 30 days or already overdue)
+    function isUrgent(deadlineDate) {
+      var now = new Date();
+      now.setHours(0, 0, 0, 0);
+      var dl = new Date(deadlineDate + 'T00:00:00');
+      var diff = Math.round((dl - now) / (1000 * 60 * 60 * 24));
+      return diff <= 30;
+    }
+
+    var today = new Date().toISOString().slice(0, 10);
+
+    // 1. 人身损害赔偿诉讼时效 — 3年
+    var litigationDeadline = addYears(accDate, 3);
+    deadlines.push({
+      item: '人身损害赔偿诉讼时效',
+      deadline: litigationDeadline,
+      remaining: remainingText(litigationDeadline),
+      legal_basis: '《民法典》第188条',
+      urgent: isUrgent(litigationDeadline),
+      note: '自知道或应当知道权利被侵害之日起3年'
+    });
+
+    // 2. 财产损失赔偿诉讼时效 — 3年
+    var propertyDeadline = addYears(accDate, 3);
+    deadlines.push({
+      item: '财产损失赔偿诉讼时效',
+      deadline: propertyDeadline,
+      remaining: remainingText(propertyDeadline),
+      legal_basis: '《民法典》第188条',
+      urgent: isUrgent(propertyDeadline),
+      note: ''
+    });
+
+    // 3. 保险理赔时效 — 非人寿2年，人寿5年
+    var insuranceDeadline2y = addYears(accDate, 2);
+    deadlines.push({
+      item: '保险理赔时效（非人寿）',
+      deadline: insuranceDeadline2y,
+      remaining: remainingText(insuranceDeadline2y),
+      legal_basis: '《保险法》第26条',
+      urgent: isUrgent(insuranceDeadline2y),
+      note: '自知道保险事故发生之日起2年'
+    });
+
+    var insuranceDeadline5y = addYears(accDate, 5);
+    deadlines.push({
+      item: '保险理赔时效（人寿）',
+      deadline: insuranceDeadline5y,
+      remaining: remainingText(insuranceDeadline5y),
+      legal_basis: '《保险法》第26条',
+      urgent: isUrgent(insuranceDeadline5y),
+      note: '人寿保险自知道保险事故发生之日起5年'
+    });
+
+    // 4. 工伤认定申请时限 — if work_related
+    var isWorkRelated = accident.work_related === '是' || accident.work_related === '上下班途中' || accident.work_related === '工作中';
+    if (isWorkRelated) {
+      // 单位申请：30日
+      var unitDeadline = addDays(accDate, 30);
+      deadlines.push({
+        item: '工伤认定申请（单位）',
+        deadline: unitDeadline,
+        remaining: remainingText(unitDeadline),
+        legal_basis: '《工伤保险条例》第17条',
+        urgent: isUrgent(unitDeadline),
+        note: '用人单位应当自事故伤害发生之日起30日内申请'
+      });
+
+      // 个人申请：1年
+      var personalDeadline = addYears(accDate, 1);
+      deadlines.push({
+        item: '工伤认定申请（个人）',
+        deadline: personalDeadline,
+        remaining: remainingText(personalDeadline),
+        legal_basis: '《工伤保险条例》第17条',
+        urgent: isUrgent(personalDeadline),
+        note: '用人单位未按期申请的，个人可自事故伤害发生之日起1年内申请'
+      });
+    }
+
+    // 5. 事故认定复核 — 3日 (urgent, but only if recently received)
+    // We don't know when they received the determination, so we add a note
+    // If accident was within last 7 days, mark as urgent
+    var daysSinceAccident = Math.round((new Date() - accDateObj) / (1000 * 60 * 60 * 24));
+    if (daysSinceAccident <= 7) {
+      var reviewDeadline = addDays(today, 3);
+      deadlines.push({
+        item: '交通事故认定复核申请',
+        deadline: reviewDeadline,
+        remaining: '收到认定书中',
+        legal_basis: '《道路交通事故处理程序规定》第71条',
+        urgent: true,
+        note: '自收到交通事故认定书之日起3日内向上级交管部门申请'
+      });
+    }
+
+    return deadlines;
+  }
+
   function importSubmissionToCase(submission) {
+    // Calculate deadlines if not provided in submission
+    var deadlines = submission.deadline_reminders;
+    if (!deadlines || deadlines.length === 0) {
+      deadlines = calculateDeadlinesFromSubmission(submission);
+    }
+
     var caseObj = {
       id: submission._meta && submission._meta.case_id ? submission._meta.case_id : submission.id || ('TA-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6)),
       importTime: submission.timestamp || new Date().toISOString(),
@@ -69,7 +211,7 @@
       injury_persons: (submission.sections && submission.sections.injury_persons) || [],
       nursing: (submission.sections && submission.sections.nursing) || {},
       insurance: (submission.sections && submission.sections.insurance) || {},
-      deadlines: submission.deadline_reminders || [],
+      deadlines: deadlines,
       demands: (submission.sections && submission.sections.demands) || {},
       litigation: (submission.sections && submission.sections.litigation) || {},
       materials: (submission.sections && submission.sections.materials) || {},
@@ -381,7 +523,12 @@
               caseObj.injury_persons = (raw.sections && raw.sections.injury_persons) || [];
               caseObj.nursing = (raw.sections && raw.sections.nursing) || {};
               caseObj.insurance = (raw.sections && raw.sections.insurance) || {};
-              caseObj.deadlines = raw.deadline_reminders || [];
+              // Calculate deadlines if not provided
+              var rawDeadlines = raw.deadline_reminders || [];
+              if (rawDeadlines.length === 0) {
+                rawDeadlines = calculateDeadlinesFromSubmission(raw);
+              }
+              caseObj.deadlines = rawDeadlines;
               caseObj.demands = (raw.sections && raw.sections.demands) || {};
               caseObj.litigation = (raw.sections && raw.sections.litigation) || {};
               caseObj.materials = (raw.sections && raw.sections.materials) || {};
@@ -393,7 +540,12 @@
               caseObj.injury_persons = raw.injury_persons || [];
               caseObj.nursing = raw.nursing || {};
               caseObj.insurance = raw.insurance || {};
-              caseObj.deadlines = raw.deadlines || [];
+              // Calculate deadlines if not provided (build a pseudo-submission for calculation)
+              var rawDeadlines2 = raw.deadlines || [];
+              if (rawDeadlines2.length === 0 && raw.accident && raw.accident.date) {
+                rawDeadlines2 = calculateDeadlinesFromSubmission({ sections: { accident: raw.accident } });
+              }
+              caseObj.deadlines = rawDeadlines2;
               caseObj.demands = raw.demands || {};
               caseObj.litigation = raw.litigation || {};
               caseObj.materials = raw.materials || {};
