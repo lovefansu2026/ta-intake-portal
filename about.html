@@ -257,10 +257,10 @@
 .video-card {
   position: relative;
   width: 100%;
-  max-width: 800px;
+  max-width: 420px;
   margin: 0 auto;
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: 12px;
+  overflow: visible;
   box-shadow: 0 20px 60px rgba(0,0,0,0.1);
   cursor: pointer;
   transition: transform 0.3s, box-shadow 0.3s;
@@ -271,9 +271,12 @@
 }
 .video-poster {
   width: 100%;
-  aspect-ratio: 16/9;
+  max-width: 420px;
+  aspect-ratio: 9/14;
   object-fit: cover;
   display: block;
+  margin: 0 auto;
+  border-radius: 8px;
 }
 .video-play-btn {
   position: absolute;
@@ -532,18 +535,21 @@
 
   <!-- ===== Video ===== -->
   <div class="about-section video-section">
-    <div class="about-section-label" style="text-align:center;">Team Video</div>
-    <h2 class="about-section-title" style="text-align:center;">团队视频</h2>
-    <p class="about-section-desc" style="text-align:center;margin-left:auto;margin-right:auto;">了解我们的团队文化与专业理念</p>
+    <div class="about-section-label" style="text-align:center;">Lawyer Says</div>
+    <h2 class="about-section-title" style="text-align:center;">律师说法</h2>
+    <p class="about-section-desc" style="text-align:center;margin-left:auto;margin-right:auto;">滕丹丹律师为您解读常见交通事故法律问题</p>
 
     <a href="https://weixin.qq.com/sph/ABwiI7MEGV" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">
       <div class="video-card">
-        <img class="video-poster" src="images/team-photo.jpg" alt="团队介绍视频">
+        <img class="video-poster" src="images/video-cover.png" alt="发生交通事故对方拖着不处理怎么办">
         <div class="video-play-btn"></div>
       </div>
     </a>
-    <div class="video-label">
-      点击观看团队介绍视频 &nbsp;·&nbsp; <a href="https://weixin.qq.com/sph/ABwiI7MEGV" target="_blank" rel="noopener">在微信中打开</a>
+    <div class="video-label" style="font-size:15px;color:var(--text-primary);font-weight:600;margin-top:20px;">
+      发生交通事故，对方拖着不处理怎么办？
+    </div>
+    <div class="video-label" style="margin-top:8px;">
+      <a href="https://weixin.qq.com/sph/ABwiI7MEGV" target="_blank" rel="noopener">点击在微信中观看 &rarr;</a>
     </div>
   </div>
 
