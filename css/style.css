@@ -589,11 +589,15 @@ a:hover { text-decoration: underline; }
 .hero {
   background: url('../images/banner-day.jpg') center center / cover no-repeat;
   color: white;
-  padding: 80px 40px;
+  padding: 120px 40px;
+  min-height: 420px;
   text-align: center;
   position: relative;
   overflow: hidden;
   transition: background-image 0.8s ease-in-out;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 
 /* Night variant — applied by JS based on time of day */
@@ -605,7 +609,7 @@ a:hover { text-decoration: underline; }
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.55) 100%);
+  background: linear-gradient(135deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.05) 60%, rgba(0,0,0,0.15) 100%);
   z-index: 0;
 }
 
@@ -674,6 +678,7 @@ a:hover { text-decoration: underline; }
 .hero .btn-hero-primary {
   background: white;
   color: var(--primary);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
 }
 
 .hero .btn-hero-primary:hover {
@@ -683,13 +688,13 @@ a:hover { text-decoration: underline; }
 }
 
 .hero .btn-hero-secondary {
-  background: rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.35);
   color: white;
-  border: 1px solid rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.4);
 }
 
 .hero .btn-hero-secondary:hover {
-  background: rgba(255,255,255,0.25);
+  background: rgba(0,0,0,0.5);
 }
 
 /* ===== Service Cards ===== */
@@ -1682,7 +1687,7 @@ a:hover { text-decoration: underline; }
 
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
-  .hero { padding: 48px 20px; }
+  .hero { padding: 80px 20px; min-height: 320px; }
   .hero h1 { font-size: 28px; }
   .hero-subtitle-line1 { font-size: 16px; }
   .hero-subtitle-line2 { font-size: 13px; padding-right: 5%; }
