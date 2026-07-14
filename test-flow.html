@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>数据流转测试</title>
+<style>
+body { font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; }
+.card { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); max-width: 400px; text-align: center; }
+h2 { margin: 0 0 8px; font-size: 18px; }
+p { color: #666; font-size: 14px; margin: 0 0 20px; line-height: 1.6; }
+button { padding: 12px 24px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; margin: 4px; }
+.primary { background: #0d9488; color: #fff; }
+.secondary { background: #f1f5f9; color: #333; }
+.result { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 13px; display: none; }
+.success { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>数据流转测试工具</h2>
+  <p>点击按钮模拟阿喵提交一条案件数据到 localStorage，然后跳转到工作台查看是否自动接收。</p>
+  <button class="primary" onclick="injectAndGo()">写入测试数据并跳转工作台</button>
+  <br>
+  <button class="secondary" onclick="justInject()">仅写入数据（不跳转）</button>
+  <button class="secondary" onclick="checkQueue()">查看当前队列</button>
+  <div id="result" class="result"></div>
+</div>
+<script>
+function makeTestData(name) {
+  var now = new Date();
+  var rand = Math.random().toString(36).substr(2,6).toUpperCase();
+  return {
+    _meta: {
+      case_id: 'TA-' + now.getFullYear() +
+        String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') +
+        String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') +
+        String(now.getSeconds()).padStart(2,'0') + '-' + rand,
+      form_version: '2.3-chatbot',
+      submit_time: now.toISOString(),
+      skill: 'traffic-accident-intake',
+      source: 'chatbot-test'
+    },
+    sections: {
+      basic_info: { name: name || '张三（测试）', gender: '男', birthdate: '1985-03-15', phone: '13800138000', address: '沈阳市和平区南京街100号', occupation: '工程师' },
+      accident: { date: '2026-07-01', time: '14:30', location: '沈阳市和平区南京街与中山路交叉口', weather: '晴', accident_type: '追尾', liability: '对方全责', reported: '是' },
+      injury_persons: [{ type: '本人', person_type: '受伤', name: name || '张三', injury_part: '颈椎', hospital: '中国医科大学附属第一医院', first_visit_date: '2026-07-01', diagnosis: '颈椎间盘突出伴神经根压迫', hospitalized: '是', hosp_start: '2026-07-01', hosp_end: '2026-07-10', hosp_days: '9', surgery: '否', disability_assessed: '未做' }],
+      nursing: { dependency: '需要', count: '1' },
+      insurance: { own_types: ['交强险','商业三者险'], opposite_types: ['交强险'] },
+      property: { vehicle_type: '轿车', drivable: '能', vehicle_damage: '15000' },
+      criminal: { risks: [] },
+      demands: { main: ['医疗费','误工费','护理费','交通费'] },
+      litigation: { status: '尚未起诉' },
+      materials: { checklist: ['事故认定书','病历','诊断证明','医疗费票据'] }
+    }
+  };
+}
+
+function inject() {
+  var data = makeTestData();
+  var queue = JSON.parse(localStorage.getItem('ta-pending-intake') || '[]');
+  queue.push(data);
+  localStorage.setItem('ta-pending-intake', JSON.stringify(queue));
+  return data;
+}
+
+function showResult(msg) {
+  var el = document.getElementById('result');
+  el.className = 'result success';
+  el.style.display = 'block';
+  el.textContent = msg;
+}
+
+function injectAndGo() {
+  var data = inject();
+  showResult('已写入测试数据（案件ID: ' + data._meta.case_id + '），正在跳转工作台...');
+  setTimeout(function() { location.href = 'team.html'; }, 1000);
+}
+
+function justInject() {
+  var data = inject();
+  showResult('已写入测试数据（案件ID: ' + data._meta.case_id + '）。现在打开工作台页面即可看到自动导入。');
+}
+
+function checkQueue() {
+  var raw = localStorage.getItem('ta-pending-intake');
+  if (!raw) { showResult('当前队列为空（无待导入数据）'); return; }
+  try {
+    var q = JSON.parse(raw);
+    showResult('当前队列中有 ' + q.length + ' 条待导入数据');
+  } catch(e) { showResult('队列数据格式异常'); }
+}
+</script>
+</body>
+</html>

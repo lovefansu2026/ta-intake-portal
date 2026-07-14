@@ -937,13 +937,28 @@ function showReview() {
 var _reviewConfirmBtn = null;
 
 function showFinal() {
+  // Auto-queue data to team workstation via localStorage
+  var payload = collectPayload();
+  var queued = queueForTeam(payload);
+
   addBot('感谢您的配合！我已记录您提供的所有信息。');
   setTimeout(function() {
-    addBot('请将下载的数据文件发送给律师，律师会尽快分析您的情况并与您联系。');
+    if (queued) {
+      addBot('数据已自动发送给律师团队，律师会尽快分析您的情况并与您联系。您也可以下载数据文件作为备份。');
+    } else {
+      addBot('请将下载的数据文件发送给律师，律师会尽快分析您的情况并与您联系。');
+    }
     setTimeout(function() {
       var s = mk('div','final-screen');
-      s.innerHTML = '<div class="icon">&#9989;</div><h3>信息收集完毕</h3><p>请下载数据文件并发送给律师。</p>' +
-        '<div class="final-btns"><button class="final-btn primary" onclick="downloadData()">下载数据文件</button></div>';
+      if (queued) {
+        s.innerHTML = '<div class="icon">&#9989;</div><h3>信息收集完毕</h3>' +
+          '<p style="color:var(--primary);font-weight:500;">数据已自动发送给律师团队</p>' +
+          '<p style="font-size:13px;color:var(--text-light);margin-top:4px;">律师工作台将自动接收您的案件信息</p>' +
+          '<div class="final-btns"><button class="final-btn secondary" onclick="downloadData()">下载数据备份</button></div>';
+      } else {
+        s.innerHTML = '<div class="icon">&#9989;</div><h3>信息收集完毕</h3><p>请下载数据文件并发送给律师。</p>' +
+          '<div class="final-btns"><button class="final-btn primary" onclick="downloadData()">下载数据文件</button></div>';
+      }
       chatArea.appendChild(s);
       scroll();
     }, 500);
@@ -1237,7 +1252,12 @@ function submitData() {
   downloadJSON(p);
 }
 
-function downloadData() { downloadJSON(collectPayload()); addBot('数据已下载保存。'); }
+function downloadData() {
+  var p = collectPayload();
+  queueForTeam(p); // ensure queued even if called directly
+  downloadJSON(p);
+  addBot('数据已下载保存。');
+}
 
 function downloadJSON(obj) {
   var blob = new Blob([JSON.stringify(obj,null,2)], {type:'application/json'});
@@ -1255,6 +1275,19 @@ function txt(t, cls) { var s = document.createElement('span'); if (cls) s.classN
 function parseCount(s) {
   if (s==='0人') return 0; if (s==='1人') return 1; if (s==='2人') return 2;
   if (s==='3人') return 3; return parseInt(s) || 0;
+}
+
+// ===== Auto-submit to Team Workstation =====
+function queueForTeam(payload) {
+  try {
+    var queue = JSON.parse(localStorage.getItem('ta-pending-intake') || '[]');
+    queue.push(payload);
+    localStorage.setItem('ta-pending-intake', JSON.stringify(queue));
+    return true;
+  } catch(e) {
+    console.warn('localStorage queue failed:', e);
+    return false;
+  }
 }
 
 // ===== Init =====

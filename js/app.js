@@ -111,6 +111,7 @@
   // ===== Init =====
   function init() {
     loadCases();
+    checkPendingIntake(); // auto-import from chatbot localStorage queue
     loadTeamConfig();
     renderDashboard();
     renderLaws('all');
@@ -158,6 +159,14 @@
       if (!c) return;
       var dlIdx = findDeadlineIndex(c, itemName);
       if (dlIdx >= 0) showVerifyPopover(caseId, dlIdx);
+    });
+
+    // Cross-tab auto-import: listen for localStorage changes from chatbot.html
+    window.addEventListener('storage', function(e) {
+      if (e.key === 'ta-pending-intake' && e.newValue) {
+        var imported = checkPendingIntake();
+        if (imported > 0) renderDashboard();
+      }
     });
   }
 
@@ -436,6 +445,39 @@
     // Reset file input
     var inputs = document.querySelectorAll('input[type=file]');
     inputs.forEach(function(inp) { inp.value = ''; });
+  }
+
+  // ===== Auto-import from Chatbot (localStorage bridge) =====
+  function checkPendingIntake() {
+    var pending;
+    try {
+      pending = localStorage.getItem('ta-pending-intake');
+    } catch(e) { return 0; }
+    if (!pending) return 0;
+
+    var queue;
+    try { queue = JSON.parse(pending); } catch(e) { return 0; }
+    if (!Array.isArray(queue) || queue.length === 0) return 0;
+
+    var count = 0;
+    queue.forEach(function(item) {
+      try {
+        importSubmissionToCase(item);
+        count++;
+      } catch(e) {
+        console.error('[AutoImport] failed for', item._meta && item._meta.case_id, e);
+      }
+    });
+
+    // Clear the queue
+    try { localStorage.removeItem('ta-pending-intake'); } catch(e) {}
+
+    if (count > 0) {
+      saveCases();
+      showSyncStatus('自动接收 ' + count + ' 个新案件（来自在线问询）', 'success');
+      setTimeout(hideSyncStatus, 5000);
+    }
+    return count;
   }
 
   // ===== Export =====
