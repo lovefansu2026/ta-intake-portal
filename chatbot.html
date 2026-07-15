@@ -425,6 +425,10 @@ var state = {
   currentStep: null,
   answers: {},
   history: [],
+  deathPersons: [],
+  currentDeathIndex: 0,
+  actualDeathCount: 0,
+  inDeathFlow: false,
   injuryPersons: [],
   currentPersonIndex: 0,
   inPersonFlow: false,
@@ -460,7 +464,7 @@ var flow = {
   t_accident: { module:2, type:'bot', text:'接下来了解事故情况。', pause:800, next:'accident_date' },
   t_nursing: { module:4, type:'bot', text:'接下来了解护理情况。', pause:800, next:'nursing' },
   t_insurance: { module:5, type:'bot', text:'下面了解保险相关信息。', pause:800, next:'insurance_own' },
-  t_property: { module:6, type:'bot', text:'接下来了解财产损失情况。', pause:800, next:'vehicle_type' },
+  t_property: { module:6, type:'bot', text:'接下来了解财产损失情况。', pause:800, next:'vehicle_classification' },
   t_criminal: { module:7, type:'bot', text:'需要确认一些重要事项。', pause:800, next:'criminal_risk' },
   t_demands: { module:8, type:'bot', text:'请告诉我您的主要诉求。', pause:800, next:'demands' },
   t_litigation: { module:9, type:'bot', text:'了解案件目前的诉讼状态。', pause:800, next:'litigation_status' },
@@ -482,12 +486,23 @@ var flow = {
   report_no: { module:2, type:'text', question:'请问事故认定书编号或报警回执编号？（选填）', field:'report_no', next:'commercial', optional:true },
   commercial: { module:2, type:'options', question:'您驾驶的车辆是否属于营运车辆？', field:'commercial', options:['网约车','出租车','货车','否','不清楚'], help:'commercial', next:'good_faith_ride' },
   good_faith_ride: { module:2, type:'options', question:'事故发生时，您是否无偿搭载他人？（即好意同乘）', field:'good_faith_ride', options:['是','否','不清楚'], help:'good_faith_ride', next:'work_related' },
-  work_related: { module:2, type:'options', question:'这次事故是否涉及工伤？（比如上下班途中、因公外出）', field:'work_related', options:['是','否','不确定'], next:'injury_count' },
+  work_related: { module:2, type:'options', question:'这次事故是否涉及工伤？（比如上下班途中、因公外出）', field:'work_related', options:['是','否','不确定'], next:'death_count' },
 
   // === Module 3: Injury Persons ===
-  injury_count: { module:3, type:'options', question:'这次事故中，有多少人受伤或遇难？', field:'injury_count', options:['0人','1人','2人','3人','具体人数'], next:'_start_persons' },
+  // === Module 3a: Death Persons ===
+  death_count: { module:3, type:'options', question:'这次事故中，有没有人员死亡？', field:'death_count', options:['无','1人','2人','3人','具体人数'], next:'_start_deaths' },
 
-  // Person sub-flow
+  // Death person sub-flow
+  d_person_type: { module:3, type:'options', question:'这位死者是？', field:'person_type', options:['本人','家属','其他人'], next:'d_name' },
+  d_name: { module:3, type:'text', question:'请问死者的姓名？', field:'injured_name', next:'d_death_date' },
+  d_death_date: { module:3, type:'date', question:'死亡日期？', field:'death_date', next:'d_death_cause' },
+  d_death_cause: { module:3, type:'options', question:'死亡原因是？', field:'death_cause', options:['当场死亡','送医抢救无效','住院期间死亡','出院后死亡','其他'], next:'d_death_diag' },
+  d_death_diag: { module:3, type:'text', question:'死亡诊断或尸检结论？', field:'death_diagnosis', next:'_next_death_person' },
+
+  // === Module 3b: Injury Persons ===
+  injury_count: { module:3, type:'options', question:'这次事故中，有多少人受伤？', field:'injury_count', options:['0人','1人','2人','3人','具体人数'], next:'_start_persons' },
+
+  // Injury person sub-flow (no death question - death already handled above)
   p_type: { module:3, type:'options', question:'这位是？', field:'person_type', options:['本人','家属','其他人'], next:'p_name' },
   p_name: { module:3, type:'text', question:'请问{person_label}的姓名？', field:'injured_name', next:'p_part' },
   p_part: { module:3, type:'text', question:'伤情是什么部位？', field:'injury_part', next:'p_hospital' },
@@ -495,18 +510,15 @@ var flow = {
   p_fvd: { module:3, type:'date', question:'首次就诊日期？', field:'first_visit_date', next:'p_diag' },
   p_diag: { module:3, type:'text', question:'诊断结果是什么？', field:'diagnosis', next:'p_hosp' },
   p_hosp: { module:3, type:'options', question:'是否住院了？', field:'hospitalized', options:['是','否'], next:'_check_hosp' },
-  p_hosp_start: { module:3, type:'date', question:'住院从什么时候开始？', field:'hosp_start', next:'p_hosp_end' },
-  p_hosp_end: { module:3, type:'date', question:'什么时候出院？', field:'hosp_end', next:'p_hosp_days' },
-  p_hosp_days: { module:3, type:'number', question:'一共住了多少天？', field:'hosp_days', next:'p_surgery' },
+  p_hosp_start: { module:3, type:'date', question:'住院从什么时候开始？', field:'hosp_start', next:'p_hosp_mode' },
+  p_hosp_mode: { module:3, type:'options', question:'您知道出院日期还是住院天数？', field:'hosp_input_mode', options:['出院日期','住院天数'], next:'_check_hosp_mode' },
+  p_hosp_end: { module:3, type:'date', question:'什么时候出院？', field:'hosp_end', next:'_auto_calc_hosp_days' },
+  p_hosp_days: { module:3, type:'number', question:'一共住了多少天？', field:'hosp_days', next:'_auto_calc_hosp_end' },
   p_surgery: { module:3, type:'options', question:'是否做了手术？', field:'surgery', options:['是','否','不清楚'], next:'p_disability' },
   p_disability: { module:3, type:'options', question:'是否已经做了伤残等级鉴定？', field:'disability_assessed', options:['未做','已做'], next:'_check_disability' },
   p_disability_level: { module:3, type:'options', question:'伤残等级是？', field:'disability_level', options:['一级','二级','三级','四级','五级','六级','七级','八级','九级','十级'], next:'p_sc' },
   p_sc: { module:3, type:'options', question:'{person_label}是否有特殊体质或既往病史？', field:'special_constitution', options:['无','有'], help:'special_constitution', next:'_check_sc' },
-  p_sc_detail: { module:3, type:'text', question:'请具体说明是什么情况？', field:'special_constitution_detail', next:'p_death' },
-  p_death: { module:3, type:'options', question:'关于{person_label}的伤情结果，需要确认一下：是否因本次事故导致死亡？', field:'is_deceased', options:['否','是'], next:'_check_death' },
-  p_death_date: { module:3, type:'date', question:'死亡日期？', field:'death_date', next:'p_death_cause' },
-  p_death_cause: { module:3, type:'options', question:'死亡原因是？', field:'death_cause', options:['当场死亡','送医抢救无效','住院期间死亡','出院后死亡','其他'], next:'p_death_diag' },
-  p_death_diag: { module:3, type:'text', question:'死亡诊断或尸检结论？', field:'death_diagnosis', next:'_next_person' },
+  p_sc_detail: { module:3, type:'text', question:'请具体说明是什么情况？', field:'special_constitution_detail', next:'_next_person' },
 
   // === Module 3+: Dependents ===
   has_dependents: { module:'3+', type:'options', question:'因为有人员死亡或伤残，涉及被扶养人生活费赔偿。请问伤者/死者是否有需要扶养的人？（如未成年子女、无劳动能力的父母等）', field:'has_dependents', options:['是','否','不确定'], help:'has_dependents', next:'_check_dependents' },
@@ -528,10 +540,13 @@ var flow = {
   own_policy: { module:5, type:'text', question:'保单号或投保信息？（选填）', field:'own_policy_info', next:'insurance_opposite', optional:true },
   insurance_opposite: { module:5, type:'multi', question:'对方有哪些保险？（可多选）', field:'insurance_opposite', options:['交强险','商业三者险','不清楚'], next:'_check_opp_insurer' },
   opp_insurer: { module:5, type:'text', question:'对方的保险公司是？', field:'opposite_insurer', next:'opp_policy' },
-  opp_policy: { module:5, type:'text', question:'对方的保单信息？（选填）', field:'opposite_policy_info', next:'vehicle_type', optional:true },
+  opp_policy: { module:5, type:'text', question:'对方的保单信息？（选填）', field:'opposite_policy_info', next:'vehicle_classification', optional:true },
 
   // === Module 6: Property ===
-  vehicle_type: { module:6, type:'options', question:'关于财产损失。您的车辆是什么类型？', field:'vehicle_type', options:['轿车','SUV','货车','摩托车','电动车','自行车','其他'], next:'drivable' },
+  vehicle_classification: { module:6, type:'options', question:'关于财产损失。您的车辆属于机动车还是非机动车？', field:'vehicle_classification', options:['机动车','非机动车','无车辆'], next:'_check_vehicle_class' },
+  vehicle_type: { module:6, type:'options', question:'具体是什么类型的车辆？', field:'vehicle_type', options:['轿车','SUV','货车','摩托车','电动车','自行车','其他'], next:'drivable' },
+  non_motorized_plate: { module:6, type:'options', question:'该非机动车是否挂了非机动车牌？', field:'non_motorized_plate', options:['已挂牌','未挂牌','不清楚'], next:'accident_report_vehicle_type' },
+  accident_report_vehicle_type: { module:6, type:'options', question:'道路交通事故认定书认定该车辆属于机动车还是非机动车？', field:'accident_report_vehicle_type', options:['机动车','非机动车','尚未出具认定书','不清楚'], next:'drivable' },
   drivable: { module:6, type:'options', question:'车辆还能开吗？', field:'drivable', options:['能','不能','不清楚'], next:'vehicle_damage' },
   vehicle_damage: { module:6, type:'number', question:'车辆大致损失金额是多少？（元）', field:'vehicle_damage', next:'repair_status' },
   repair_status: { module:6, type:'options', question:'维修或定损情况如何？', field:'repair_status', options:['未定损','已定损','已维修'], next:'vehicle_mod' },
@@ -594,18 +609,40 @@ function go(stepId) {
       if (p && p.hospitalized === '是') { state.personSubPhase = 'hosp'; go('p_hosp_start'); }
       else go('p_surgery');
     },
+    '_check_hosp_mode': function() {
+      var p = state.injuryPersons[state.currentPersonIndex];
+      go(p && p.hosp_input_mode === '出院日期' ? 'p_hosp_end' : 'p_hosp_days');
+    },
+    '_auto_calc_hosp_days': function() {
+      var p = state.injuryPersons[state.currentPersonIndex];
+      if (p && p.hosp_start && p.hosp_end) {
+        var s = new Date(p.hosp_start), e = new Date(p.hosp_end);
+        var days = Math.round((e - s) / (1000*60*60*24));
+        if (days > 0) { p.hosp_days = String(days); addBot('已自动计算住院天数为 ' + days + ' 天。'); }
+      }
+      setTimeout(function() { go('p_surgery'); }, 600);
+    },
+    '_auto_calc_hosp_end': function() {
+      var p = state.injuryPersons[state.currentPersonIndex];
+      if (p && p.hosp_start && p.hosp_days) {
+        var s = new Date(p.hosp_start);
+        var days = parseInt(p.hosp_days) || 0;
+        var e = new Date(s); e.setDate(e.getDate() + days);
+        p.hosp_end = e.toISOString().split('T')[0];
+        addBot('已自动计算出出院日期为 ' + p.hosp_end + '。');
+      }
+      setTimeout(function() { go('p_surgery'); }, 600);
+    },
     '_check_disability': function() {
       var p = state.injuryPersons[state.currentPersonIndex];
       go(p && p.disability_assessed === '已做' ? 'p_disability_level' : 'p_sc');
     },
     '_check_sc': function() {
       var p = state.injuryPersons[state.currentPersonIndex];
-      go(p && p.special_constitution === '有' ? 'p_sc_detail' : 'p_death');
+      go(p && p.special_constitution === '有' ? 'p_sc_detail' : '_next_person');
     },
-    '_check_death': function() {
-      var p = state.injuryPersons[state.currentPersonIndex];
-      go(p && p.is_deceased === '是' ? 'p_death_date' : '_next_person');
-    },
+    '_start_deaths': startDeathsLoop,
+    '_next_death_person': nextDeathPerson,
     '_next_person': nextPerson,
     '_check_dependents': function() { go(state.answers.has_dependents === '是' ? 'dep_count' : 't_nursing'); },
     '_start_dependents': startDepsLoop,
@@ -620,6 +657,15 @@ function go(stepId) {
       go(o.length && o.indexOf('不清楚')<0 ? 'opp_insurer' : 't_property');
     },
     '_check_mod': function() { go(state.answers.vehicle_modification === '有' ? 'vehicle_mod_detail' : 'other_loss'); },
+    '_check_vehicle_class': function() {
+      var vc = state.answers.vehicle_classification;
+      if (vc === '无车辆') { go('other_loss'); }
+      else if (vc === '非机动车') { go('non_motorized_plate'); }
+      else {
+        flow.vehicle_type.options = ['轿车','SUV','货车','摩托车','其他'];
+        go('vehicle_type');
+      }
+    },
     '_check_criminal': function() {
       var r = state.answers.criminal_risk || [];
       if (r.length && r.indexOf('均不存在')<0) {
@@ -821,11 +867,13 @@ function showReview() {
     weather:'天气', accident_type:'事故类型', liability:'责任认定',
     reported:'是否报警', report_no:'事故认定书编号', commercial:'是否营运车辆',
     good_faith_ride:'是否好意同乘', work_related:'是否涉及工伤',
+    death_count:'死亡人数',
     injury_count:'受伤人数',
     nursing_dependency:'是否需要护理', nursing_count:'护理人数', nursing_note:'护理备注',
     insurance_own:'己方保险', own_insurer:'己方保险公司', own_policy_info:'己方保单信息',
     insurance_opposite:'对方保险', opposite_insurer:'对方保险公司', opposite_policy_info:'对方保单信息',
-    vehicle_type:'车辆类型', drivable:'车辆能否行驶', vehicle_damage:'车辆损失(元)',
+    vehicle_type:'车辆类型', vehicle_classification:'车辆分类', non_motorized_plate:'非机动车挂牌', accident_report_vehicle_type:'事故认定书认定车辆类型',
+    drivable:'车辆能否行驶', vehicle_damage:'车辆损失(元)',
     repair_status:'维修状态', vehicle_modification:'车辆改装', vehicle_modification_detail:'改装详情',
     other_property_loss:'其他财产损失',
     criminal_risk:'刑事风险项',
@@ -841,7 +889,16 @@ function showReview() {
       items.push({ field: key, label: fieldLabels[key], value: String(val) });
     }
   }
-  // Person info
+  // Death person info
+  state.deathPersons.forEach(function(p, i) {
+    var prefix = '死者' + (i+1);
+    if (p.person_type) items.push({ field:'death_'+i+'_type', label: prefix+'身份', value: p.person_type });
+    if (p.injured_name) items.push({ field:'death_'+i+'_name', label: prefix+'姓名', value: p.injured_name });
+    if (p.death_date) items.push({ field:'death_'+i+'_death_date', label: prefix+'死亡日期', value: p.death_date });
+    if (p.death_cause) items.push({ field:'death_'+i+'_death_cause', label: prefix+'死亡原因', value: p.death_cause });
+    if (p.death_diagnosis) items.push({ field:'death_'+i+'_death_diag', label: prefix+'死亡诊断', value: p.death_diagnosis });
+  });
+  // Injury person info
   state.injuryPersons.forEach(function(p, i) {
     var prefix = '伤者' + (i+1);
     if (p.person_type) items.push({ field:'person_'+i+'_type', label: prefix+'身份', value: p.person_type });
@@ -859,10 +916,6 @@ function showReview() {
     if (p.disability_level) items.push({ field:'person_'+i+'_disability_level', label: prefix+'伤残等级', value: p.disability_level });
     if (p.special_constitution) items.push({ field:'person_'+i+'_sc', label: prefix+'特殊体质', value: p.special_constitution });
     if (p.special_constitution_detail) items.push({ field:'person_'+i+'_sc_detail', label: prefix+'特殊体质说明', value: p.special_constitution_detail });
-    if (p.is_deceased) items.push({ field:'person_'+i+'_deceased', label: prefix+'是否死亡', value: p.is_deceased });
-    if (p.death_date) items.push({ field:'person_'+i+'_death_date', label: prefix+'死亡日期', value: p.death_date });
-    if (p.death_cause) items.push({ field:'person_'+i+'_death_cause', label: prefix+'死亡原因', value: p.death_cause });
-    if (p.death_diagnosis) items.push({ field:'person_'+i+'_death_diag', label: prefix+'死亡诊断', value: p.death_diagnosis });
   });
   // Dependents
   state.dependents.forEach(function(d, i) {
@@ -894,14 +947,18 @@ function showReview() {
       addBot('请重新输入「' + item.label + '」：');
       showInput(function(v) {
         // Update state
-        if (item.field.indexOf('person_') === 0) {
+        if (item.field.indexOf('death_') === 0) {
+          var parts = item.field.split('_');
+          var di = parseInt(parts[1]);
+          var deathFieldMap = {type:'person_type',name:'injured_name',death_date:'death_date',death_cause:'death_cause',death_diag:'death_diagnosis'};
+          if (state.deathPersons[di]) state.deathPersons[di][deathFieldMap[parts[2]]] = v;
+        } else if (item.field.indexOf('person_') === 0) {
           var parts = item.field.split('_');
           var pi = parseInt(parts[1]);
           var fieldMap = {type:'person_type',name:'injured_name',part:'injury_part',hospital:'hospital',
             fvd:'first_visit_date',diag:'diagnosis',hosp:'hospitalized',hosp_start:'hosp_start',
             hosp_end:'hosp_end',hosp_days:'hosp_days',surgery:'surgery',disability:'disability_assessed',
-            disability_level:'disability_level',sc:'special_constitution',sc_detail:'special_constitution_detail',
-            deceased:'is_deceased',death_date:'death_date',death_cause:'death_cause',death_diag:'death_diagnosis'};
+            disability_level:'disability_level',sc:'special_constitution',sc_detail:'special_constitution_detail'};
           if (state.injuryPersons[pi]) state.injuryPersons[pi][fieldMap[parts[2]]] = v;
         } else if (item.field.indexOf('dep_') === 0) {
           var parts = item.field.split('_');
@@ -965,7 +1022,66 @@ function showFinal() {
   }, 500);
 }
 
-// ===== Persons Loop =====
+// ===== Deaths Loop =====
+function startDeathsLoop() {
+  var ans = state.answers.death_count;
+  if (ans === '无') {
+    addBot('了解，没有人员死亡。接下来了解受伤情况。');
+    setTimeout(function() { go('injury_count'); }, 600);
+    return;
+  }
+  if (ans === '具体人数') {
+    addBot('请告诉我具体有几位死亡人员？');
+    var g = mk('div','number-input-group');
+    var ni = mk('input'); ni.type='number'; ni.min='1'; ni.placeholder='人数'; ni.inputMode='numeric';
+    var cb = mk('button','date-confirm-btn'); cb.textContent='确认';
+    g.appendChild(ni); g.appendChild(cb);
+    chatArea.appendChild(g); scroll();
+    setTimeout(function(){ni.focus();},100);
+    cb.onclick = function() {
+      var v = parseInt(ni.value);
+      if (!v || v < 1) { alert('请输入有效人数'); return; }
+      addUser(v + '人');
+      state.actualDeathCount = v;
+      g.remove();
+      setTimeout(function() { beginDeathsLoop(); }, 300);
+    };
+    ni.onkeydown = function(e) { if (e.key==='Enter') { e.preventDefault(); cb.onclick(); } };
+    return;
+  }
+  state.actualDeathCount = parseCount(ans);
+  beginDeathsLoop();
+}
+
+function beginDeathsLoop() {
+  state.currentDeathIndex = 0;
+  state.inDeathFlow = true;
+  addBot('好的，请逐一告诉我每位死亡人员的情况。');
+  setTimeout(function() { startOneDeathPerson(); }, 500);
+}
+
+function startOneDeathPerson() {
+  var idx = state.currentDeathIndex;
+  if (!state.deathPersons[idx]) state.deathPersons[idx] = {};
+  state.deathPersons[idx].is_deceased = '是';
+  addBot('--- 第' + (idx+1) + '位死亡人员 ---');
+  go('d_person_type');
+}
+
+function nextDeathPerson() {
+  var c = state.actualDeathCount || 1;
+  state.currentDeathIndex++;
+  if (state.currentDeathIndex < c) {
+    addBot('好的，已记录。请告诉我下一位。');
+    setTimeout(function() { startOneDeathPerson(); }, 500);
+  } else {
+    state.inDeathFlow = false;
+    addBot('所有死亡人员信息已记录。接下来了解受伤情况。');
+    setTimeout(function() { go('injury_count'); }, 600);
+  }
+}
+
+// ===== Injury Persons Loop =====
 function startPersonsLoop() {
   var ans = state.answers.injury_count;
   if (ans === '0人') {
@@ -1019,9 +1135,11 @@ function startOnePerson() {
 }
 
 function hasDeathOrDisability() {
-  return state.injuryPersons.some(function(p) {
-    return p && (p.is_deceased === '是' || p.disability_assessed === '已做');
+  var hasDeath = state.deathPersons.length > 0;
+  var hasDisability = state.injuryPersons.some(function(p) {
+    return p && p.disability_assessed === '已做';
   });
+  return hasDeath || hasDisability;
 }
 
 function nextPerson() {
@@ -1164,7 +1282,10 @@ function updateProgress(mod) {
 
 // ===== Field Saving =====
 function save(field, value) {
-  if (state.inPersonFlow) {
+  if (state.inDeathFlow) {
+    var dp = state.deathPersons[state.currentDeathIndex];
+    if (dp) dp[field] = value;
+  } else if (state.inPersonFlow) {
     var p = state.injuryPersons[state.currentPersonIndex];
     if (p) p[field] = value;
   } else if (state.inDepFlow) {
@@ -1179,6 +1300,18 @@ function save(field, value) {
 var _origGo = go;
 go = function(stepId) {
   // Auto-fill name when person_type=本人
+  if (stepId === 'd_name' && state.inDeathFlow) {
+    var dp = state.deathPersons[state.currentDeathIndex];
+    if (dp && dp.person_type === '本人') {
+      addBot('请问您的姓名？');
+      dp.injured_name = state.answers.name || '';
+      setTimeout(function() {
+        addUser(state.answers.name || '（自动填入）');
+        setTimeout(function() { go('d_death_date'); }, 250);
+      }, 300);
+      return;
+    }
+  }
   if (stepId === 'p_name' && state.inPersonFlow) {
     var p = state.injuryPersons[state.currentPersonIndex];
     if (p && p.person_type === '本人') {
@@ -1204,6 +1337,15 @@ function collectPayload() {
     String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') +
     String(now.getSeconds()).padStart(2,'0') + String(now.getMilliseconds()).padStart(3,'0') + '-' + rand;
 
+  var dps = state.deathPersons.map(function(p) {
+    return {
+      type: p.person_type==='本人'?'本人':(p.person_type||''),
+      person_type: '死亡',
+      name: p.injured_name||'',
+      death_date: p.death_date||'', death_cause: p.death_cause||'', death_diagnosis: p.death_diagnosis||''
+    };
+  });
+
   var ips = state.injuryPersons.map(function(p) {
     return {
       type: p.person_type==='本人'?'本人':(p.person_type||''),
@@ -1215,8 +1357,7 @@ function collectPayload() {
       surgery: p.surgery||'', disability_assessed: p.disability_assessed||'',
       disability_level: p.disability_level||'',
       special_constitution: p.special_constitution||'',
-      special_constitution_detail: p.special_constitution_detail||'',
-      death_date: p.death_date||'', death_cause: p.death_cause||'', death_diagnosis: p.death_diagnosis||''
+      special_constitution_detail: p.special_constitution_detail||''
     };
   });
 
@@ -1231,10 +1372,11 @@ function collectPayload() {
       vehicle_owner: { name:a.vo_name||'', relationship:a.vo_relationship||'', phone:a.vo_phone||'', idcard:'' },
       accident: { date:a.accident_date||'', time:a.accident_time||'', location:a.accident_location||'', weather:a.weather?[a.weather]:[], liability:a.liability||'', liability_ratio:'', reported:a.reported||'', report_no:a.report_no||'', accident_type:a.accident_type||'', commercial:a.commercial||'', good_faith_ride:a.good_faith_ride||'', work_related:a.work_related||'' },
       injury_persons: ips,
+      death_persons: dps,
       dependents: { has_dependents:a.has_dependents||'', list:deps },
       nursing: { dependency:a.nursing_dependency||'', count:a.nursing_count||'', note:a.nursing_note||'' },
       insurance: { own_types:a.insurance_own||[], own_unclear:false, insurer:a.own_insurer||'', policy_info:a.own_policy_info||'', opposite_types:a.insurance_opposite||[], opposite_unclear:false, opposite_insurer:a.opposite_insurer||'', opposite_policy_info:a.opposite_policy_info||'' },
-      property: { vehicle_type:a.vehicle_type||'', drivable:a.drivable||'', vehicle_damage:a.vehicle_damage||'', repair_status:a.repair_status||'', vehicle_modification:a.vehicle_modification||'', vehicle_modification_detail:a.vehicle_modification_detail||'', other_property_loss:a.other_property_loss||'' },
+      property: { vehicle_type:a.vehicle_type||'', vehicle_classification:a.vehicle_classification||'', non_motorized_plate:a.non_motorized_plate||'', accident_report_vehicle_type:a.accident_report_vehicle_type||'', drivable:a.drivable||'', vehicle_damage:a.vehicle_damage||'', repair_status:a.repair_status||'', vehicle_modification:a.vehicle_modification||'', vehicle_modification_detail:a.vehicle_modification_detail||'', other_property_loss:a.other_property_loss||'' },
       criminal: { risks:a.criminal_risk||[], note:'' },
       demands: { main:a.demands||[], other:a.other_demands||'' },
       litigation: { status:a.litigation_status||'', case_no:a.case_no||'', case_cause:a.case_cause||'' },

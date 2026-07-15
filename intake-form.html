@@ -860,31 +860,62 @@
     <!-- 五、财产损失 -->
     <div class="section">
       <div class="section-title"><span class="num">5</span>财产损失</div>
+      <!-- 车辆分类 -->
       <div class="form-row">
-        <div class="form-group"><label>车辆类型</label>
-          <select name="vehicle_type"><option value="">请选择</option><option value="轿车">轿车</option><option value="SUV">SUV</option><option value="货车">货车</option><option value="摩托车">摩托车</option><option value="电动车">电动车</option><option value="自行车">自行车</option><option value="无">无</option><option value="其他">其他</option></select>
-        </div>
-        <div class="form-group"><label>车辆是否可行驶</label>
+        <div class="form-group"><label>车辆分类</label>
           <div class="check-group">
-            <label class="check-item"><input type="radio" name="drivable" value="是"><span class="check-label">是</span></label>
-            <label class="check-item"><input type="radio" name="drivable" value="否"><span class="check-label">否（全损）</span></label>
+            <label class="check-item"><input type="radio" name="vehicle_classification" value="机动车" onchange="toggleVehicleClass()"><span class="check-label">机动车</span></label>
+            <label class="check-item"><input type="radio" name="vehicle_classification" value="非机动车" onchange="toggleVehicleClass()"><span class="check-label">非机动车</span></label>
+            <label class="check-item"><input type="radio" name="vehicle_classification" value="无车辆" onchange="toggleVehicleClass()"><span class="check-label">无车辆</span></label>
           </div>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>车辆大致损失金额（元）</label><input type="number" name="vehicle_damage" placeholder="预估金额"></div>
-        <div class="form-group"><label>维修/定损情况</label>
-          <select name="repair_status"><option value="">请选择</option><option value="未定损">未定损</option><option value="已定损">已定损</option><option value="已维修">已维修</option></select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>车辆是否有改装/加装</label>
+      <!-- 非机动车专属字段 -->
+      <div class="form-row" id="nonMotorizedFields" style="display:none">
+        <div class="form-group"><label>是否挂非机动车牌</label>
           <div class="check-group">
-            <label class="check-item"><input type="radio" name="vehicle_modification" value="无" checked onchange="toggleVehicleMod()"><span class="check-label">无</span></label>
-            <label class="check-item"><input type="radio" name="vehicle_modification" value="有" onchange="toggleVehicleMod()"><span class="check-label">有</span></label>
+            <label class="check-item"><input type="radio" name="non_motorized_plate" value="是"><span class="check-label">是</span></label>
+            <label class="check-item"><input type="radio" name="non_motorized_plate" value="否"><span class="check-label">否</span></label>
+            <label class="check-item"><input type="radio" name="non_motorized_plate" value="不清楚"><span class="check-label">不清楚</span></label>
           </div>
         </div>
-        <div class="form-group" id="vehicleModDetail" style="display:none"><label>改装/加装内容</label><input type="text" name="vehicle_modification_detail" placeholder="如：加装尾翼、改装排气、加装保险杠等"></div>
+        <div class="form-group"><label>事故认定书认定车辆类型</label>
+          <div class="check-group">
+            <label class="check-item"><input type="radio" name="accident_report_vehicle_type" value="机动车"><span class="check-label">认定为机动车</span></label>
+            <label class="check-item"><input type="radio" name="accident_report_vehicle_type" value="非机动车"><span class="check-label">认定为非机动车</span></label>
+            <label class="check-item"><input type="radio" name="accident_report_vehicle_type" value="未认定"><span class="check-label">未认定</span></label>
+            <label class="check-item"><input type="radio" name="accident_report_vehicle_type" value="尚无认定书"><span class="check-label">尚无认定书</span></label>
+          </div>
+        </div>
+      </div>
+      <!-- 车辆详情（机动车/非机动车时显示） -->
+      <div id="vehicleDetailFields">
+        <div class="form-row">
+          <div class="form-group"><label>车辆类型</label>
+            <select name="vehicle_type" id="vehicleTypeSelect"><option value="">请选择</option></select>
+          </div>
+          <div class="form-group"><label>车辆是否可行驶</label>
+            <div class="check-group">
+              <label class="check-item"><input type="radio" name="drivable" value="是"><span class="check-label">是</span></label>
+              <label class="check-item"><input type="radio" name="drivable" value="否"><span class="check-label">否（全损）</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>车辆大致损失金额（元）</label><input type="number" name="vehicle_damage" placeholder="预估金额"></div>
+          <div class="form-group"><label>维修/定损情况</label>
+            <select name="repair_status"><option value="">请选择</option><option value="未定损">未定损</option><option value="已定损">已定损</option><option value="已维修">已维修</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>车辆是否有改装/加装</label>
+            <div class="check-group">
+              <label class="check-item"><input type="radio" name="vehicle_modification" value="无" checked onchange="toggleVehicleMod()"><span class="check-label">无</span></label>
+              <label class="check-item"><input type="radio" name="vehicle_modification" value="有" onchange="toggleVehicleMod()"><span class="check-label">有</span></label>
+            </div>
+          </div>
+          <div class="form-group" id="vehicleModDetail" style="display:none"><label>改装/加装内容</label><input type="text" name="vehicle_modification_detail" placeholder="如：加装尾翼、改装排气、加装保险杠等"></div>
+        </div>
       </div>
       <div class="form-row single"><div class="form-group"><label>其他财物损失</label><input type="text" name="other_property_loss" placeholder="如手机损坏、衣物损坏等"></div></div>
     </div>
@@ -1524,11 +1555,11 @@
           '</div>' +
         '</div>' +
         '<div class="form-row hosp-detail-' + index + '" style="display:none">' +
-          '<div class="form-group"><label>入院日期</label>' + createDateInput('hosp_start_' + index, todayStr, { onchange: 'calcDischargeDate(' + index + ')' }) + '</div>' +
-          '<div class="form-group"><label>住院天数</label><input type="number" name="hosp_days_' + index + '" min="0" max="999" placeholder="可选" onchange="calcDischargeDate(' + index + ')" oninput="calcDischargeDate(' + index + ')"></div>' +
+          '<div class="form-group"><label>入院日期</label>' + createDateInput('hosp_start_' + index, todayStr, { onchange: 'calcHospDates(' + index + ')' }) + '</div>' +
+          '<div class="form-group"><label>住院天数</label><input type="number" name="hosp_days_' + index + '" min="0" max="999" placeholder="出院日期与住院天数任选其一" onchange="calcHospDates(' + index + ')" oninput="calcHospDates(' + index + ')"></div>' +
         '</div>' +
         '<div class="form-row hosp-detail-' + index + '" style="display:none">' +
-          '<div class="form-group"><label>出院日期（自动计算）</label>' + createDateInput('hosp_end_' + index, '', { readonly: true }) + '</div>' +
+          '<div class="form-group"><label>出院日期（与住院天数任选其一，另一个自动计算）</label>' + createDateInput('hosp_end_' + index, '', { onchange: 'calcHospDates(' + index + ')' }) + '</div>' +
           '<div class="form-group"></div>' +
         '</div>' +
         '<div class="form-row">' +
@@ -1762,16 +1793,28 @@
     details.forEach(function(d) { d.style.display = isHosp ? 'grid' : 'none'; });
   }
 
-  function calcDischargeDate(index) {
+  function calcHospDates(index) {
     var startInput = document.querySelector('[name="hosp_start_' + index + '"]');
     var daysInput = document.querySelector('[name="hosp_days_' + index + '"]');
     var endInput = document.querySelector('[name="hosp_end_' + index + '"]');
-    if (startInput && startInput.value && daysInput && daysInput.value) {
-      var startDate = new Date(startInput.value);
-      var days = parseInt(daysInput.value) || 0;
+    if (!startInput) return;
+    var startVal = startInput.value;
+    var daysVal = daysInput ? daysInput.value : '';
+    var endVal = endInput ? endInput.value : '';
+    // If days changed → calculate discharge date
+    if (startVal && daysVal) {
+      var startDate = new Date(startVal);
+      var days = parseInt(daysVal) || 0;
       var endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + days);
-      setCompositeDate(endInput, endDate.toISOString().split('T')[0]);
+      if (endInput) setCompositeDate(endInput, endDate.toISOString().split('T')[0]);
+    }
+    // If discharge date changed → calculate days
+    else if (startVal && endVal) {
+      var startDate = new Date(startVal);
+      var endDate = new Date(endVal);
+      var days = Math.round((endDate - startDate) / (1000*60*60*24));
+      if (daysInput && days >= 0) daysInput.value = days;
     }
   }
 
@@ -1808,6 +1851,37 @@
     var detail = document.getElementById('vehicleModDetail');
     if (detail && checked) {
       detail.style.display = checked.value === '有' ? '' : 'none';
+    }
+  }
+
+  function toggleVehicleClass() {
+    var checked = document.querySelector('[name="vehicle_classification"]:checked');
+    var detailFields = document.getElementById('vehicleDetailFields');
+    var nonMotorizedFields = document.getElementById('nonMotorizedFields');
+    var vehicleSelect = document.getElementById('vehicleTypeSelect');
+    if (!checked) return;
+    var classification = checked.value;
+
+    var motorizedTypes = ['轿车','SUV','货车','客车','摩托车','其他机动车'];
+    var nonMotorizedTypes = ['自行车','电动自行车','三轮车','轮椅车','其他非机动车'];
+
+    if (classification === '无车辆') {
+      if (detailFields) detailFields.style.display = 'none';
+      if (nonMotorizedFields) nonMotorizedFields.style.display = 'none';
+    } else {
+      if (detailFields) detailFields.style.display = '';
+      // Update vehicle type options based on classification
+      if (vehicleSelect) {
+        var types = (classification === '机动车') ? motorizedTypes : nonMotorizedTypes;
+        var currentVal = vehicleSelect.value;
+        vehicleSelect.innerHTML = '<option value="">请选择</option>' + types.map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('');
+        // Restore selection if still valid
+        if (types.indexOf(currentVal) >= 0) vehicleSelect.value = currentVal;
+      }
+      // Show non-motorized specific fields only for 非机动车
+      if (nonMotorizedFields) {
+        nonMotorizedFields.style.display = (classification === '非机动车') ? '' : 'none';
+      }
     }
   }
 
@@ -2195,7 +2269,7 @@
           opposite_insurer: result.opposite_insurer || '',
           opposite_policy_info: result.opposite_policy_info || ''
         },
-        property: { vehicle_type: result.vehicle_type||'', drivable: result.drivable||'', vehicle_damage: result.vehicle_damage||'', repair_status: result.repair_status||'', vehicle_modification: result.vehicle_modification||'', vehicle_modification_detail: result.vehicle_modification_detail||'', other_property_loss: result.other_property_loss||'' },
+        property: { vehicle_classification: result.vehicle_classification||'', non_motorized_plate: result.non_motorized_plate||'', accident_report_vehicle_type: result.accident_report_vehicle_type||'', vehicle_type: result.vehicle_type||'', drivable: result.drivable||'', vehicle_damage: result.vehicle_damage||'', repair_status: result.repair_status||'', vehicle_modification: result.vehicle_modification||'', vehicle_modification_detail: result.vehicle_modification_detail||'', other_property_loss: result.other_property_loss||'' },
         criminal: { risks: result.criminal_risk||[], note: result.criminal_note||'' },
         demands: { main: result.demands||[], other: result.other_demands||'' },
         litigation: { status: result.litigation_status||'', case_no: result.case_no||'', case_cause: result.case_cause||'' },
